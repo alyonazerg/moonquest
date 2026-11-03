@@ -28,6 +28,7 @@
         if (answered) return;
         answered = true;
         if (ok) correct++; else mistakes.push(item);
+        MQ.sfx[ok ? 'good' : 'bad']();
         fb.className = 'feedback ' + (ok ? 'good' : 'bad');
         fb.textContent = ok ? praise() : msg;
         nextBtn.hidden = false;
@@ -168,12 +169,14 @@
             if (a.k === b.k) {
               a.done = b.done = true;
               a.el.classList.add('done'); b.el.classList.add('done');
+              MQ.sfx.good();
               speak(a.w.say || a.w.en);
               pairs++; open = [];
               updateInfo();
               if (pairs === items.length) setTimeout(() => ctx.finish(items.length, Math.max(tries, items.length), mistakes), 700);
             } else {
               lock = true;
+              MQ.sfx.bad();
               [a, b].forEach(x => { if (!mistakes.includes(x.w)) mistakes.push(x.w); });
               setTimeout(() => { a.el.classList.add('hidden'); b.el.classList.add('hidden'); open = []; lock = false; updateInfo(); }, 900);
             }
@@ -194,6 +197,7 @@
     run(ctx, items) {
       runRounds(ctx, items, (w, body, answer) => {
         const target = w.target || w.en;
+        const sayText = w.say || target;
         const letters = shuffle(target.split('').map((ch, idx) => ({ ch, idx })));
         let picked = [];
         let hintsUsed = 0;
@@ -207,7 +211,7 @@
         const check = () => {
           if (picked.length !== target.length) return;
           const word = picked.map(l => l.ch).join('');
-          if (word === target) { speak(target); answer(hintsUsed < 2, hintsUsed < 2 ? '' : `Good! Next time try with fewer hints. It is “${target}”.`); }
+          if (word === target) { speak(sayText); answer(hintsUsed < 2, hintsUsed < 2 ? '' : `Good! Next time try with fewer hints. It is “${target}”.`); }
           else { body.querySelector('.feedback-inline').textContent = 'Not yet. Try again! Tap a letter to take it back.'; }
         };
         const hintBtn = h('button', {
@@ -225,7 +229,7 @@
         body.append(
           MQ.pic(w),
           w.prompt || (!w.pic && !w.img && w.ru) ? h('div', { class: 'prompt' }, w.prompt || w.ru) : null,
-          h('div', { class: 'row' }, sayBtn(target), hintBtn),
+          h('div', { class: 'row' }, sayBtn(sayText), hintBtn),
           h('div', { class: 'hint' }, `The word has ${target.replace(/ /g, '').length} letters.`),
           slots, tiles,
           h('div', { class: 'hint feedback-inline' }),

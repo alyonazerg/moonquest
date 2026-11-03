@@ -56,7 +56,7 @@
         h('div', { class: 'forms' }, col('V1', v.base, 'infinitive', 'f1'), col('V2', v.v2, 'past simple', 'f2'), col('V3', v.v3, 'participle', 'f3')),
         v.ru ? h('div', { class: 'card-ru small' }, v.ru) : null,
       ],
-      say: `${v.base}, ${v.v2}, ${v.v3}`,
+      say: MQ.verbSay(v),
     };
   }
 
@@ -100,6 +100,7 @@
       flipped = !flipped;
       const from = flipped ? 0 : 180, to = flipped ? 180 : 0;
       card.classList.toggle('flipped', flipped);
+      MQ.sfx.flip();
       if (anim) anim.cancel();
       if (inner.animate) {
         anim = inner.animate([

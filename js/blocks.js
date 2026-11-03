@@ -86,10 +86,12 @@
         if (b.letter === need) {
           pos++;
           burst(cx, b.y + S / 2, '#8dffc8', 14);
+          MQ.sfx.pop();
           if (pos >= word().answer.length) wordDone();
         } else {
           wordHadMistake = true;
           flash = 0.7;
+          MQ.sfx.bad();
           burst(cx, b.y + S / 2, '#ff6b81', 10);
           msg = { text: `Next letter is not “${b.letter}”`, t: 1.1, color: '#ffd34d' };
           addStone(b.col);
@@ -101,7 +103,8 @@
         solved += wordHadMistake ? 0 : 1;
         if (wordHadMistake) mistakes.push(x.item);
         score += 10 * x.answer.length;
-        speak(x.shown);
+        speak(x.say || x.shown);
+        MQ.sfx.win();
         // reward: clear the bottom row of stones
         for (let c = 0; c < COLS; c++) if (stack[c] > 0) stack[c]--;
         msg = { text: '🎉 ' + x.shown, t: 1.3, color: '#8dffc8' };

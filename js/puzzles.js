@@ -13,7 +13,7 @@
     (u.verbs || []).forEach(v => {
       [['v2', 'Past Simple'], ['v3', 'Past Participle']].forEach(([f, name]) => {
         if (v[f].includes('/')) return;
-        out.push({ shown: v[f], clueText: `${v.base} → ${name}`, item: Object.assign({ en: `${v.base} (${f.toUpperCase()})` }, v) });
+        out.push({ shown: v[f], say: MQ.formSay(v, f), clueText: `${v.base} → ${name}`, item: Object.assign({ en: `${v.base} (${f.toUpperCase()})` }, v) });
       });
     });
     // unique answers
@@ -163,7 +163,7 @@
         });
         const done = cw.words.filter(wordOk);
         if (done.length === cw.words.length) {
-          msg.className = 'feedback good'; msg.textContent = 'You did it! 🎉';
+          msg.className = 'feedback good'; msg.textContent = 'You did it! 🎉'; MQ.sfx.win();
           setTimeout(() => ctx.finish(Math.max(0, cw.words.length - Math.floor(hints / 2)), cw.words.length, []), 900);
         } else if (final) {
           cw.words.forEach(w => w.answer.split('').forEach((ch, i) => {
@@ -174,6 +174,7 @@
           setTimeout(() => ctx.finish(done.length, cw.words.length, missed.map(w => w.item)), 1500);
         } else {
           msg.className = 'feedback ' + (wrongCells ? 'bad' : 'good');
+          MQ.sfx[wrongCells ? 'bad' : 'good']();
           msg.textContent = `Words ready: ${done.length} / ${cw.words.length}` + (wrongCells ? ` · red letters are wrong` : '');
         }
       }
@@ -255,14 +256,14 @@
           if (over || used.has(ch)) return;
           used.add(ch);
           const b = keys.querySelector(`[data-k="${ch}"]`);
-          if (x.answer.includes(ch)) { if (b) b.classList.add('right'); }
-          else { wrong++; if (b) b.classList.add('wrong'); rocket.classList.remove('shake'); void rocket.offsetWidth; rocket.classList.add('shake'); }
+          if (x.answer.includes(ch)) { if (b) b.classList.add('right'); MQ.sfx.pop(); }
+          else { wrong++; MQ.sfx.bad(); if (b) b.classList.add('wrong'); rocket.classList.remove('shake'); void rocket.offsetWidth; rocket.classList.add('shake'); }
           const win = x.answer.replace(/ /g, '').split('').every(c => used.has(c));
           if (win || wrong >= PARTS) {
             over = true;
-            if (win) { guessed++; fb.className = 'feedback good'; fb.textContent = 'Yes! 🎉 ' + x.shown; rocket.classList.add('launch'); }
+            if (win) { guessed++; fb.className = 'feedback good'; fb.textContent = 'Yes! 🎉 ' + x.shown; rocket.classList.add('launch'); MQ.sfx.win(); }
             else { mistakes.push(x.item); fb.className = 'feedback bad'; fb.textContent = 'The word was: ' + x.shown; }
-            speak(x.shown);
+            speak(x.say || x.shown);
             next.hidden = false; next.focus();
           }
           render();

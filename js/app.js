@@ -15,6 +15,7 @@
     who.innerHTML = '';
     who.append(
       store.me ? h('a', { class: 'btn chip', href: '#/who', title: 'Change player' }, '👤 ' + store.me.name) : null,
+      h('button', { class: 'chip', title: 'Sounds on/off', onclick: (e) => { e.currentTarget.textContent = MQ.sfx.toggle() ? '🔔' : '🔕'; } }, MQ.sfx.on ? '🔔' : '🔕'),
       h('a', { class: 'btn chip', href: '#/teacher', title: 'Teacher' }, '👩‍🏫'));
   }
 
@@ -75,7 +76,11 @@
     const myCourses = own.filter(c => c.id !== 'irr');
     const showVerbs = store.me.course !== 'as2';
     app.append(
-      h('h1', {}, `Hello, ${store.me.name}! 👋`),
+      h('h1', {}, `Hello, ${store.me.name}! ${MQ.theme(store.me.id) === 'magic' ? '🪄' : '👋'}`),
+      h('div', { class: 'row theme-row' },
+        h('span', { class: 'muted' }, 'Theme:'),
+        ['space', 'magic'].map(t => h('button', { class: 'chip' + (MQ.theme(store.me.id) === t ? ' on' : ''), onclick: () => { MQ.setTheme(store.me.id, t); route(); } },
+          t === 'space' ? '🚀 Space' : '🪄 Magic school'))),
       now ? h('div', { class: 'panel now' },
         h('div', {}, h('div', { class: 'muted' }, '📍 Now we study'), h('div', { class: 'title' }, now.u.title), h('div', { class: 'muted' }, now.c.title)),
         h('div', { class: 'row' },
@@ -96,19 +101,20 @@
           h('div', { class: 'title' }, u.title),
           h('div', { class: 'muted' }, c.title),
           h('div', { class: 'stars' }, `★ ${unitStars(c, u)} / ${gameIds(u).length * 3}`)))),
-        showVerbs ? folderTile(courses.irr) : null),
+        showVerbs ? folderTile(courses.irr) : null,
+        folderTile(courses.magic)),
     );
   }
 
   // A folder tile that opens a whole collection (e.g. all irregular verb groups)
   function folderTile(c) {
-    const verbs = c.units.reduce((n, u) => n + (u.verbs || []).length, 0);
+    const verbs = c.units.reduce((n, u) => n + (u.verbs || []).length + (u.vocab || []).length, 0);
     const got = c.units.reduce((n, u) => n + unitStars(c, u), 0);
     const max = c.units.reduce((n, u) => n + gameIds(u).length * 3, 0);
     return h('a', { class: 'tile folder', href: c.href },
-      h('div', { class: 'big' }, '📁'),
+      h('div', { class: 'big' }, c.id === 'irr' ? '📁' : c.icon),
       h('div', { class: 'title' }, c.title),
-      h('div', { class: 'muted' }, `${c.units.length} groups · ${verbs} verbs`),
+      h('div', { class: 'muted' }, c.id === 'irr' ? `${c.units.length} groups · ${verbs} verbs` : `${c.units.length} planets · ${verbs} words`),
       h('div', { class: 'stars' }, `★ ${got} / ${max}`));
   }
 
@@ -212,7 +218,7 @@
 
   function unit(c, u) {
     app.append(
-      c === courses.irr ? h('a', { href: c.href, class: 'back' }, '← ' + c.title) : h('a', { href: '#/', class: 'back' }, '← Home'),
+      c.folder ? h('a', { href: c.href, class: 'back' }, '← ' + c.title) : h('a', { href: '#/', class: 'back' }, '← Home'),
       h('h1', {}, `${u.icon || '🪐'} ${u.title}`),
       h('p', { class: 'muted' }, u.subtitle || ''),
       extraCards(c, u),
@@ -249,6 +255,7 @@
       root, unit: u, key: c.key(u, gameId), override: !!itemsOverride,
       finish(correct, total, mistakes) {
         const stars = MQ.starsFor(correct, total);
+        if (stars >= 2) setTimeout(() => MQ.sfx.win(), 250);
         if (!itemsOverride || label !== 'mistakes only') store.record(c.key(u, gameId), { stars, correct, total, mistakes });
         root.innerHTML = '';
         root.append(h('div', { class: 'panel' },
@@ -292,6 +299,7 @@
     const my = ++seq;
     MQ.stopSpeech();
     app.innerHTML = '';
+    MQ.applyTheme(store.me && store.me.id);
     renderWho();
     const parts = (location.hash || '#/').split('/');
     try {

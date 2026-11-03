@@ -26,7 +26,7 @@
     (unit.vocab || []).forEach(v => { t.add(v.en); });
     (unit.sentences || []).forEach(s => t.add(s.en));
     (unit.grammar || []).forEach(g => g.items.forEach(it => { if (it.q.includes(' ')) t.add(it.q.replace('___', it.a)); }));
-    (unit.verbs || []).forEach(v => { t.add(`${v.base}, ${v.v2}, ${v.v3}`); t.add(v.base); t.add(v.v2); t.add(v.v3); });
+    (unit.verbs || []).forEach(v => { t.add(MQ.verbSay(v)); t.add(v.base); t.add(MQ.formSay(v, 'v2')); t.add(MQ.formSay(v, 'v3')); });
     return [...t].filter(Boolean);
   }
   async function recordAudio(units, statusEl) {

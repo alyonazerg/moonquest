@@ -3,7 +3,8 @@ window.MQ = (function () {
   const courses = {
     as2: { id: 'as2', title: 'Academy Stars 2', icon: '🚀', units: [] },
     as4: { id: 'as4', title: 'Academy Stars 4', icon: '🛸', units: [] },
-    irr: { id: 'irr', title: 'Irregular verbs', icon: '🔁', units: [] },
+    irr: { id: 'irr', title: 'Irregular verbs', icon: '🔁', units: [], folder: true },
+    magic: { id: 'magic', title: 'Magic school', icon: '🪄', units: [], folder: true },
   };
   Object.values(courses).forEach(c => { c.href = `#/c/${c.id}`; });
 
@@ -107,5 +108,55 @@ window.MQ = (function () {
   }
   function findUnit(key) { return unitOptions().find(o => o.key === key) || null; }
 
-  return { unitOptions, findUnit, pic, courses, addUnit, load, save, h, shuffle, sample, norm, starsFor, uid, toast, speak, stopSpeech };
+  // ---------- sound effects (made in the browser, no files) ----------
+  let actx = null;
+  let sfxOn = load('sfx', true);
+  function tone(notes, { type = 'triangle', len = 0.13, gap = 0.08, vol = 0.16 } = {}) {
+    if (!sfxOn) return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === 'suspended') actx.resume();
+      const t0 = actx.currentTime + 0.01;
+      notes.forEach((f, i) => {
+        const o = actx.createOscillator(), g = actx.createGain();
+        o.type = type; o.frequency.value = f;
+        const t = t0 + i * gap;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(vol, t + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+        o.connect(g); g.connect(actx.destination);
+        o.start(t); o.stop(t + len + 0.02);
+      });
+    } catch (e) { /* no audio */ }
+  }
+  const sfx = {
+    good: () => tone([784, 1175], { len: 0.16, gap: 0.08 }),                  // bright "ding-ding"
+    bad: () => tone([196, 147], { type: 'sawtooth', len: 0.2, gap: 0.12, vol: 0.07 }), // low "bonk"
+    pop: () => tone([988], { len: 0.07, vol: 0.1 }),
+    win: () => tone([523, 659, 784, 1047, 1319], { len: 0.22, gap: 0.09, vol: 0.13 }),
+    flip: () => tone([440, 660], { type: 'sine', len: 0.09, gap: 0.05, vol: 0.06 }),
+    get on() { return sfxOn; },
+    toggle() { sfxOn = !sfxOn; save('sfx', sfxOn); if (sfxOn) sfx.good(); return sfxOn; },
+  };
+
+  // ---------- pronunciation of verb forms ----------
+  // Forms spelled like the base form but pronounced differently (read – read [red] – read [red]).
+  const PRON = { read: 'red' };
+  function formSay(v, f) {
+    const w = String(v[f] || '');
+    if (f !== 'base' && w === v.base && PRON[w]) return PRON[w];
+    return w.replace(/\//g, ' or ');
+  }
+  const verbSay = (v) => `${v.base}, ${formSay(v, 'v2')}, ${formSay(v, 'v3')}`;
+
+  // ---------- themes: 'space' (default) or 'magic', remembered per student on this device ----------
+  function theme(studentId) { return load('theme_' + (studentId || 'guest'), 'space'); }
+  function applyTheme(studentId) {
+    const t = theme(studentId);
+    document.body.classList.toggle('theme-magic', t === 'magic');
+    window.dispatchEvent(new CustomEvent('mq-theme', { detail: t }));
+  }
+  function setTheme(studentId, t) { save('theme_' + (studentId || 'guest'), t); applyTheme(studentId); }
+
+  return { theme, applyTheme, setTheme, sfx, formSay, verbSay, unitOptions, findUnit, pic, courses, addUnit, load, save, h, shuffle, sample, norm, starsFor, uid, toast, speak, stopSpeech };
 })();

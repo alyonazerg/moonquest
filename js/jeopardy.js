@@ -77,6 +77,7 @@
         modal.hidden = false;
         function close(ok) {
           used.add(id); answered++;
+          MQ.sfx[ok ? 'good' : 'bad']();
           if (ok) { correct++; players[turn].score += pts; } else { mistakes.push(Object.assign({ en: `${x.q} → ${x.a}` }, x)); }
           if (players.length > 1) turn = (turn + 1) % players.length;
           modal.hidden = true;

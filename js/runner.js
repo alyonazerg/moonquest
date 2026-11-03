@@ -24,7 +24,7 @@
     return {
       prompt: [h('span', { class: 'rn-word' }, v.base), h('span', { class: 'rn-arrow' }, ' → '), h('span', { class: 'rn-ask' }, FORM[f])],
       sub: v.ru || '',
-      answers, right: answers.indexOf(right), say: right,
+      answers, right: answers.indexOf(right), say: MQ.formSay(v, f),
       reveal: `${v.base} – ${v.v2} – ${v.v3}`,
       item: x,
     };
@@ -123,6 +123,7 @@
         speed = Math.min(360, speed + 12);
         burst(shipX, shipY - 30, '#3ddc97', 26);
         msg = { text: combo >= 3 ? `🔥 Combo x${combo}!` : 'Great!', color: '#8dffc8', t: 1 };
+        MQ.sfx.good();
       } else {
         lives--; combo = 0;
         mistakes.push(round.item);
@@ -130,6 +131,7 @@
         speed = Math.max(130, speed - 30);
         burst(shipX, shipY - 30, '#ff6b81', 18);
         msg = { text: round.reveal, color: '#ffd34d', t: 1.6 };
+        MQ.sfx.bad();
       }
       speak(round.say);
       idx++;

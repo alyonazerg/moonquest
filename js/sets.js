@@ -72,7 +72,7 @@
 
   // ---------- verb games ----------
   const forms = (v) => `${v.base} – ${v.v2} – ${v.v3}`;
-  const sayForms = (v) => `${v.base}, ${v.v2}, ${v.v3}`;
+  const sayForms = (v) => MQ.verbSay(v); // read – read [red] – read [red]
   const FORM_NAME = { v2: 'Past Simple', v3: 'Past Participle' };
   function fakeRegular(b) {
     if (/e$/.test(b)) return b + 'd';
@@ -149,7 +149,7 @@
     title: 'Spell the form', icon: '🔤', desc: 'Put the letters in the right order.',
     available: hasVerbs,
     items: u => sample(u.verbs.flatMap(v => [{ v, f: 'v2' }, { v, f: 'v3' }]), Math.min(10, u.verbs.length * 2))
-      .map(({ v, f }) => ({ en: v.base, target: v[f], prompt: `${v.base} → ${FORM_NAME[f]}` })),
+      .map(({ v, f }) => ({ en: v.base, target: v[f], say: MQ.formSay(v, f), prompt: `${v.base} → ${FORM_NAME[f]}` })),
     run: (ctx, items) => games.spell.run(ctx, items),
   };
 

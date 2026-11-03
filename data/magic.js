@@ -1,0 +1,103 @@
+// "Magic school": an original fairy-tale wizard theme (no characters or names from any book or film).
+MQ.addUnit('magic', {
+  id: 'm1', order: 1, icon: '🪄', title: 'Magic words',
+  subtitle: 'Wizards, wands, owls and potions',
+  vocab: [
+    { en: 'wizard', ru: 'волшебник', pic: '🧙' },
+    { en: 'witch', ru: 'ведьма, волшебница', pic: '🧙‍♀️' },
+    { en: 'wand', ru: 'волшебная палочка', pic: '🪄' },
+    { en: 'spell', ru: 'заклинание', pic: '✨' },
+    { en: 'potion', ru: 'зелье', pic: '🧪' },
+    { en: 'owl', ru: 'сова', pic: '🦉' },
+    { en: 'broom', ru: 'метла', pic: '🧹' },
+    { en: 'castle', ru: 'замок', pic: '🏰' },
+    { en: 'ghost', ru: 'привидение', pic: '👻' },
+    { en: 'dragon', ru: 'дракон', pic: '🐉' },
+    { en: 'unicorn', ru: 'единорог', pic: '🦄' },
+    { en: 'crystal ball', ru: 'хрустальный шар', pic: '🔮' },
+    { en: 'spell book', ru: 'книга заклинаний', pic: '📖' },
+    { en: 'candle', ru: 'свеча', pic: '🕯️' },
+    { en: 'key', ru: 'ключ', pic: '🗝️' },
+    { en: 'letter', ru: 'письмо', pic: '✉️' },
+    { en: 'magic hat', ru: 'волшебная шляпа', pic: '🎩' },
+    { en: 'map', ru: 'карта', pic: '🗺️' },
+  ],
+  grammar: [
+    {
+      title: 'can / can’t',
+      rule: 'can + verb: A wizard can fly. Negative: can’t. Question: Can you …?',
+      items: [
+        { q: 'A wizard ___ fly on a broom.', options: ['can', 'cans', 'can to'], a: 'can', pic: '🧹', hint: 'can + verb (no -s!)' },
+        { q: 'Owls ___ read letters. They are birds!', options: ["can't", "don't can", 'not can'], a: "can't", pic: '🦉', hint: "Negative: can't" },
+        { q: '___ you make a potion?', options: ['Can', 'Do', 'Are'], a: 'Can', pic: '🧪', hint: 'Question: Can you …?' },
+        { q: 'The dragon can ___ fire.', options: ['breathe', 'breathes', 'to breathe'], a: 'breathe', pic: '🐉', hint: 'can + verb without -s' },
+      ],
+    },
+    {
+      title: 'There is / There are',
+      rule: 'There is + one thing. There are + many things.',
+      items: [
+        { q: 'There ___ a ghost in the castle!', options: ['is', 'are'], a: 'is', pic: '👻', hint: 'one ghost → There is' },
+        { q: 'There ___ ten candles in the hall.', options: ['are', 'is'], a: 'are', pic: '🕯️', hint: 'ten candles → There are' },
+        { q: 'There ___ an owl on the tower.', options: ['is', 'are'], a: 'is', pic: '🦉', hint: 'one owl → There is' },
+        { q: 'There ___ three keys on the table.', options: ['are', 'is'], a: 'are', pic: '🗝️', hint: 'three keys → There are' },
+      ],
+    },
+  ],
+  sentences: [
+    { en: 'The wizard has got a long wand.', pic: '🪄' },
+    { en: 'There is a ghost in the castle.', pic: '👻' },
+    { en: 'My owl can carry letters.', pic: '🦉' },
+    { en: 'Can you fly on a broom?', pic: '🧹', hint: 'It is a question.' },
+    { en: 'The dragon lives in a cave.', pic: '🐉' },
+  ],
+});
+
+MQ.addUnit('magic', {
+  id: 'm2', order: 2, icon: '📜', title: 'A day at magic school',
+  subtitle: 'Past Simple in a magic story',
+  note: 'Yesterday was a magic day! Practise Past Simple: regular verbs get -ed (open → opened), irregular ones change (fly → flew, find → found).',
+  vocab: [
+    { en: 'magic school', ru: 'школа магии', pic: '🏰' },
+    { en: 'tower', ru: 'башня', pic: '🗼' },
+    { en: 'secret door', ru: 'тайная дверь', pic: '🚪' },
+    { en: 'treasure', ru: 'сокровище', pic: '💎' },
+    { en: 'invisible', ru: 'невидимый', pic: '🫥' },
+    { en: 'brave', ru: 'смелый', pic: '🦁' },
+    { en: 'teacher of potions', ru: 'учитель зельеварения', pic: '🧪' },
+    { en: 'flying lesson', ru: 'урок полётов', pic: '🧹' },
+  ],
+  grammar: [
+    {
+      title: 'Past Simple in the story',
+      rule: 'Regular: + ed (opened, looked). Irregular: fly → flew, find → found, see → saw, make → made, go → went.',
+      items: [
+        { q: 'Yesterday an owl ___ a letter to me.', options: ['brought', 'bringed', 'brings'], a: 'brought', pic: '🦉', hint: 'bring → brought' },
+        { q: 'We ___ on brooms in the flying lesson.', options: ['flew', 'flied', 'fly'], a: 'flew', pic: '🧹', hint: 'fly → flew' },
+        { q: 'Mia ___ a secret door behind the books.', options: ['found', 'finded', 'find'], a: 'found', pic: '🚪', hint: 'find → found' },
+        { q: 'I ___ the door with a magic key.', options: ['opened', 'open', 'opend'], a: 'opened', pic: '🗝️', hint: 'open → opened (regular)' },
+        { q: 'The teacher ___ a green potion.', options: ['made', 'maked', 'makes'], a: 'made', pic: '🧪', hint: 'make → made' },
+        { q: 'We ___ a dragon in the forest!', options: ['saw', 'seed', 'see'], a: 'saw', pic: '🐉', hint: 'see → saw' },
+        { q: 'The ghost ___ scary. It was funny!', options: ["wasn't", "weren't", "didn't"], a: "wasn't", pic: '👻', hint: "it → wasn't" },
+        { q: '___ you see the unicorn? Yes, I did.', options: ['Did', 'Do', 'Were'], a: 'Did', pic: '🦄', hint: 'Past question: Did you …?' },
+      ],
+    },
+  ],
+  verbs: [
+    { base: 'fly', v2: 'flew', v3: 'flown', ru: 'летать' },
+    { base: 'find', v2: 'found', v3: 'found', ru: 'находить' },
+    { base: 'bring', v2: 'brought', v3: 'brought', ru: 'приносить' },
+    { base: 'make', v2: 'made', v3: 'made', ru: 'делать' },
+    { base: 'see', v2: 'saw', v3: 'seen', ru: 'видеть' },
+    { base: 'read', v2: 'read', v3: 'read', ru: 'читать ([red] в V2 и V3)' },
+    { base: 'write', v2: 'wrote', v3: 'written', ru: 'писать' },
+    { base: 'take', v2: 'took', v3: 'taken', ru: 'брать' },
+  ],
+  sentences: [
+    { en: 'An owl brought me a letter.', pic: '🦉' },
+    { en: 'We flew over the castle.', pic: '🏰' },
+    { en: 'I found a secret door.', pic: '🚪' },
+    { en: 'Did you see the dragon?', pic: '🐉', hint: 'It is a question.' },
+    { en: 'The potion was green and smelly.', pic: '🧪' },
+  ],
+});
