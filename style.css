@@ -272,9 +272,10 @@ textarea.field, input[type=file].field { width: 100%; }
 .card-example { font-style: italic; font-size: .85em; color: rgba(255, 255, 255, .85); max-width: 90%; }
 .face-hint { position: absolute !important; bottom: 12px; font-size: .7em; color: rgba(255, 255, 255, .6); }
 .forms { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
-.form { border-radius: 18px; padding: 12px 6px; background: rgba(10, 20, 80, .28); border: 1px solid rgba(255, 255, 255, .28); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35); }
-.form-label { font-size: .58em; text-transform: uppercase; letter-spacing: 1px; color: #d6ecff; }
-.form-word { font-size: 1.35em; font-weight: 900; margin-top: 4px; word-break: break-word; text-shadow: 0 2px 8px rgba(0, 20, 80, .45); }
+.form { display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 6px; min-height: 130px; border-radius: 18px; padding: 12px 6px; background: rgba(10, 20, 80, .28); border: 1px solid rgba(255, 255, 255, .28); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35); }
+.form-tag { font-size: .7em; font-weight: 900; letter-spacing: 1px; color: #d6ecff; background: rgba(255, 255, 255, .14); padding: 1px 10px; border-radius: 999px; }
+.form-sub { font-size: .55em; text-transform: uppercase; letter-spacing: 1px; color: #cfe6ff; opacity: .85; }
+.form-word { font-size: 1.35em; font-weight: 900; line-height: 1.1; flex: 1; display: flex; align-items: center; word-break: break-word; text-shadow: 0 2px 8px rgba(0, 20, 80, .45); }
 .form.f2 .form-word { color: #fff3b0; }
 .form.f3 .form-word { color: #c9ffe6; }
 

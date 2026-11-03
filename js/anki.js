@@ -48,11 +48,12 @@
     };
   }
   function verbFaces(v) {
-    const col = (label, form, cls) => h('div', { class: 'form ' + cls }, h('div', { class: 'form-label' }, label), h('div', { class: 'form-word' }, form));
+    const col = (tag, form, sub, cls) => h('div', { class: 'form ' + cls },
+      h('div', { class: 'form-tag' }, tag), h('div', { class: 'form-word' }, form), h('div', { class: 'form-sub' }, sub));
     return {
       front: [h('div', { class: 'card-word' }, v.base), v.ru ? h('div', { class: 'card-sub' }, v.ru) : null, h('div', { class: 'card-ask' }, 'V2 ? · V3 ?')],
       back: [
-        h('div', { class: 'forms' }, col('V1', v.base, 'f1'), col('V2 · Past Simple', v.v2, 'f2'), col('V3 · Past Participle', v.v3, 'f3')),
+        h('div', { class: 'forms' }, col('V1', v.base, 'infinitive', 'f1'), col('V2', v.v2, 'past simple', 'f2'), col('V3', v.v3, 'participle', 'f3')),
         v.ru ? h('div', { class: 'card-ru small' }, v.ru) : null,
       ],
       say: `${v.base}, ${v.v2}, ${v.v3}`,
