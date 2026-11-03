@@ -308,3 +308,29 @@ textarea.field, input[type=file].field { width: 100%; }
 /* "now we study" banner */
 .panel.now { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; text-align: left; max-width: 760px; }
 .panel.now .title { font-weight: 900; font-size: 1.2em; }
+
+/* ---------- Runner games ---------- */
+.rn { max-width: 640px; margin: 0 auto; }
+.rn-hud { display: grid; grid-template-columns: 1fr auto 1fr auto; gap: 10px; align-items: center; font-weight: 900; margin-bottom: 8px; }
+.rn-hud span:nth-child(1) { text-align: left; letter-spacing: 2px; }
+.rn-hud span:nth-child(3) { color: #ffb03b; text-shadow: 0 0 12px rgba(255, 150, 40, .7); }
+.rn-hud span:nth-child(4) { color: var(--muted); }
+.rn-top { min-height: 92px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.rn-banner { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; font-size: 1.5em; font-weight: 900; }
+.rn-word { text-shadow: 0 0 20px rgba(155, 123, 255, .8); }
+.rn-arrow { color: var(--muted); }
+.rn-ask { font-size: .6em; color: #2a1a00; background: linear-gradient(180deg, #ffe680, #ffc233); padding: 4px 14px; border-radius: 999px; box-shadow: 0 0 18px rgba(255, 211, 77, .5); }
+.rn-sub { color: var(--muted); font-size: .85em; min-height: 1.2em; }
+.rn-pic.emoji { font-size: 1.8em; animation: none; }
+.pic-img.rn-pic { width: 64px; height: 64px; display: inline-block; }
+.rn-stage { position: relative; border-radius: 26px; overflow: hidden; border: 1px solid var(--glass-border); box-shadow: var(--glass-shadow); touch-action: none; }
+.rn-canvas { display: block; width: 100%; }
+.rn-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 20px;
+  background: radial-gradient(circle, rgba(20, 10, 60, .55), rgba(10, 5, 30, .8)); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+.rn-title { font-size: 2em; font-weight: 900; }
+.rn-count { font-size: 5em; font-weight: 900; color: var(--accent); text-shadow: 0 0 30px rgba(255, 211, 77, .8); animation: pop .6s ease-out; }
+.rn-count.small { font-size: 2.6em; }
+.rn-score { font-size: 1.2em; font-weight: 900; }
+@keyframes pop { from { transform: scale(1.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.rn-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+.rn-btn { font-size: 1.8em; padding: .35em; touch-action: manipulation; user-select: none; -webkit-user-select: none; }

@@ -17,9 +17,9 @@
 ## Игры
 Карточки в стиле Anki (Flashcards / Verb flashcards): карточка переворачивается, ученица оценивает себя
 Again / Hard / Good / Easy, и каждая карточка возвращается тогда, когда её пора повторить.
-Слова: Listen and choose, Find pairs, Spell the word.
+Слова: Listen and choose, Find pairs, Spell the word, 🚀 Word Runner.
 Грамматика: Choose the right word (по всем темам или по одной — ▶ Practise), Make a sentence.
-Неправильные глаголы: Verb cards, Choose the form, Write the forms, Spell the form, Verb pairs.
+Неправильные глаголы: Choose the form, Write the forms, Spell the form, Verb pairs, 🚀 Verb Runner (аркада: ракета влетает в правильную форму).
 
 ## 🔁 Irregular verbs galaxy
 Готовые группы неправильных глаголов по созвучию и паттерну: cut–cut–cut, buy–bought, sing–sang–sung,
