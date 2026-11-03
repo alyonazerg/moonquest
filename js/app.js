@@ -75,6 +75,7 @@
     const own = store.me.course && courses[store.me.course] ? [courses[store.me.course]] : [courses.as2, courses.as4];
     const myCourses = own.filter(c => c.id !== 'irr');
     const showVerbs = store.me.course !== 'as2';
+    const showVpr = !store.me.course || store.me.course === 'as2';
     app.append(
       h('h1', {}, `Hello, ${store.me.name}! ${MQ.theme(store.me.id) === 'magic' ? '🪄' : '👋'}`),
       h('div', { class: 'row theme-row' },
@@ -109,6 +110,7 @@
           h('div', { class: 'muted' }, c.title),
           h('div', { class: 'stars' }, `★ ${unitStars(c, u)} / ${gameIds(u).length * 3}`)))),
         showVerbs ? folderTile(courses.irr) : null,
+        showVpr ? folderTile(courses.vpr) : null,
         folderTile(courses.magic)),
     );
   }
@@ -121,7 +123,7 @@
     return h('a', { class: 'tile folder', href: c.href },
       h('div', { class: 'big' }, c.id === 'irr' ? '📁' : c.icon),
       h('div', { class: 'title' }, c.title),
-      h('div', { class: 'muted' }, c.id === 'irr' ? `${c.units.length} groups · ${verbs} verbs` : `${c.units.length} ${MQ.themed('planet')} · ${verbs} words`),
+      h('div', { class: 'muted' }, c.id === 'irr' ? `${c.units.length} groups · ${verbs} verbs` : c.id === 'vpr' ? `Вариантов: ${c.units.length}` : `${c.units.length} ${MQ.themed('planet')} · ${verbs} words`),
       h('div', { class: 'stars' }, `★ ${got} / ${max}`));
   }
 

@@ -25,6 +25,7 @@
     const t = new Set();
     (unit.vocab || []).forEach(v => { t.add(v.en); });
     (unit.sentences || []).forEach(s => t.add(s.en));
+    ((unit.vpr && unit.vpr.tasks) || []).forEach(x => { if (x.audio) t.add(x.audio); });
     (unit.grammar || []).forEach(g => g.items.forEach(it => { if (it.q.includes(' ')) t.add(it.q.replace('___', it.a)); }));
     (unit.verbs || []).forEach(v => { t.add(MQ.verbSay(v)); t.add(v.base); t.add(MQ.formSay(v, 'v2')); t.add(MQ.formSay(v, 'v3')); });
     return [...t].filter(Boolean);

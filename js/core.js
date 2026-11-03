@@ -5,6 +5,7 @@ window.MQ = (function () {
     as4: { id: 'as4', title: 'Academy Stars 4', icon: '🛸', units: [] },
     irr: { id: 'irr', title: 'Irregular verbs', icon: '🔁', units: [], folder: true },
     magic: { id: 'magic', title: 'Magic school', icon: '🪄', units: [], folder: true },
+    vpr: { id: 'vpr', title: 'ВПР 4 класс', icon: '📝', units: [], folder: true },
   };
   Object.values(courses).forEach(c => { c.href = `#/c/${c.id}`; });
 
