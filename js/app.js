@@ -1,6 +1,7 @@
 // Moonquest app: routing and screens.
 (function () {
   const { h, courses, games, settings } = MQ;
+  Object.values(courses).forEach(c => { c.href = `#/c/${c.id}`; });
   const app = document.getElementById('app');
   const zoomBtn = document.getElementById('zoomToggle');
 
@@ -29,7 +30,12 @@
           h('div', { class: 'title' }, c.title),
           h('div', { class: 'muted' }, c.who),
           h('div', { class: 'stars' }, `★ ${got} / ${max}`));
-      })),
+      }),
+      h('a', { class: 'tile', href: '#/lists' },
+        h('div', { class: 'big' }, '✍️'),
+        h('div', { class: 'title' }, 'My lists'),
+        h('div', { class: 'muted' }, 'Свои списки слов и глаголов'),
+        h('div', { class: 'muted' }, `Lists: ${MQ.lists.count()}`))),
     );
   }
 
@@ -51,16 +57,23 @@
 
   function unit(c, u) {
     app.append(
-      h('a', { href: `#/c/${c.id}`, class: 'muted' }, '← ' + c.title),
+      h('a', { href: c.href, class: 'muted' }, '← ' + c.title),
       h('h1', {}, `${u.icon || '🪐'} ${u.title}`),
       h('p', { class: 'muted' }, u.subtitle || ''),
       u.demo ? h('p', { class: 'hint' }, 'Демо-содержание: будет заменено материалами учебника.') : null,
       (u.grammar || []).length ? h('div', { class: 'panel' },
         h('h2', {}, '📘 Grammar'),
         u.grammar.map(g => h('p', {}, h('b', {}, g.title + ': '), g.rule))) : null,
+      (u.verbs || []).length ? h('details', { class: 'panel' },
+        h('summary', {}, '📋 Verb table'),
+        h('table', { style: 'width:100%;margin-top:10px;border-collapse:collapse' },
+          h('tr', { class: 'muted' }, h('th', { align: 'left' }, 'V1'), h('th', { align: 'left' }, 'V2'), h('th', { align: 'left' }, 'V3'), h('th', { align: 'left' }, '')),
+          u.verbs.map(v => h('tr', { style: 'border-top:1px solid #ffffff22' },
+            h('td', {}, v.base), h('td', {}, v.v2), h('td', {}, v.v3),
+            h('td', {}, h('button', { class: 'chip', onclick: () => MQ.speak(`${v.base}, ${v.v2}, ${v.v3}`) }, '🔊')))))) : null,
       h('div', { class: 'grid' }, gameIds(u).map(id => {
         const g = games[id];
-        return h('a', { class: 'tile', href: `#/c/${c.id}/${u.id}/${id}` },
+        return h('a', { class: 'tile', href: `${c.href}/${u.id}/${id}` },
           h('div', { class: 'big' }, g.icon),
           h('div', { class: 'title' }, g.title),
           h('div', { class: 'muted' }, g.desc),
@@ -107,11 +120,11 @@
           h('div', { class: 'row' },
             mistakes.length ? h('button', { class: 'primary', onclick: () => play(c, u, gameId, MQ.shuffle(mistakes)) }, `🔁 Practise mistakes (${mistakes.length})`) : null,
             h('button', { onclick: () => play(c, u, gameId) }, '▶ Play again'),
-            h('a', { class: 'btn', href: `#/c/${c.id}/${u.id}` }, '🪐 Back to planet'))));
+            h('a', { class: 'btn', href: `${c.href}/${u.id}` }, '🪐 Back'))));
       },
     };
     app.append(
-      h('a', { href: `#/c/${c.id}/${u.id}`, class: 'muted' }, '← ' + u.title),
+      h('a', { href: `${c.href}/${u.id}`, class: 'muted' }, '← ' + u.title),
       h('h1', {}, `${g.icon} ${g.title}`),
       h('p', { class: 'muted' }, g.desc, itemsOverride ? ' (mistakes only)' : ''),
       settings.zoom ? zoomNames() : null,
@@ -133,7 +146,9 @@
   function route() {
     if ('speechSynthesis' in window) speechSynthesis.cancel();
     app.innerHTML = '';
-    const [, , cid, uid, gid] = (location.hash || '#/').split('/');
+    const parts = (location.hash || '#/').split('/');
+    if ((parts[1] === 'lists' || parts[1] === 'share') && MQ.lists.route(app, parts, { unit, play })) { window.scrollTo(0, 0); return; }
+    const [, , cid, uid, gid] = parts;
     const c = courses[cid];
     const u = c && c.units.find(x => x.id === uid);
     if (c && u && gid && games[gid]) play(c, u, gid);

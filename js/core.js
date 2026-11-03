@@ -30,6 +30,11 @@ window.MQ = (function () {
   }
 
   // ---------- helpers ----------
+  // Let el.append(...) skip null/false so screens can write `cond ? node : null`.
+  const nativeAppend = Element.prototype.append;
+  Element.prototype.append = function (...kids) {
+    return nativeAppend.apply(this, kids.flat().filter(k => k != null && k !== false));
+  };
   function h(tag, attrs, ...children) {
     const el = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs || {})) {

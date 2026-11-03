@@ -96,7 +96,7 @@
           onclick: () => {
             flipped = !flipped;
             back.textContent = flipped ? [w.ru, w.example].filter(Boolean).join(' · ') : 'Tap to turn over';
-            if (flipped) speak(w.en);
+            if (flipped) speak(w.say || w.en);
           },
         },
         w.pic ? h('div', { class: 'emoji' }, w.pic) : null,
@@ -108,7 +108,7 @@
           bar(known / total),
           card,
           h('div', { class: 'row', style: 'margin-top:14px' },
-            sayBtn(w.en),
+            sayBtn(w.say || w.en),
             h('button', { onclick: () => { queue.push(queue.shift()); if (!mistakes.includes(w)) mistakes.push(w); step(); } }, '🔁 Again later'),
             h('button', { class: 'primary', onclick: () => { queue.shift(); known++; step(); } }, '✅ I know it')),
         );
@@ -119,15 +119,16 @@
 
   // ---------- 2. Listen and choose ----------
   games.listen = {
-    title: 'Listen and choose', icon: '👂', desc: 'Listen to the word. Choose the picture.',
+    title: 'Listen and choose', icon: '👂', desc: 'Listen to the word. Choose the answer.',
     available: u => (u.vocab || []).length >= 4,
     items: u => sample(u.vocab, Math.min(10, u.vocab.length)),
     run(ctx, items) {
       const vocab = ctx.unit.vocab;
       const pics = hasPics(vocab);
+      const ru = !pics && vocab.every(v => v.ru);
       runRounds(ctx, items, (w, body, answer) => {
         const opts = shuffle([w, ...sample(vocab.filter(v => v !== w), 3)])
-          .map(v => ({ value: v.en, label: pics ? v.pic : v.en }));
+          .map(v => ({ value: v.en, label: pics ? v.pic : ru ? v.ru : v.en }));
         body.append(
           h('div', { class: 'prompt' }, 'Listen and choose!'),
           h('button', { class: 'primary', style: 'font-size:1.6em', onclick: () => speak(w.en) }, '🔊 Listen'),
@@ -141,13 +142,14 @@
 
   // ---------- 3. Find pairs (memory) ----------
   games.memory = {
-    title: 'Find pairs', icon: '🧠', desc: 'Find the word and its picture.',
-    available: u => (u.vocab || []).filter(v => v.pic).length >= 4,
-    items: u => sample(u.vocab.filter(v => v.pic), 6),
+    title: 'Find pairs', icon: '🧠', desc: 'Find the word and its pair.',
+    available: u => (u.vocab || []).filter(v => v.pic || v.ru).length >= 4,
+    items: u => sample(u.vocab.filter(v => v.pic || v.ru), 6),
     run(ctx, items) {
+      // a card pair: picture (or translation) <-> English word
       const cards = shuffle(items.flatMap((w, k) => [
-        { k, face: h('span', { class: 'e' }, w.pic), w },
-        { k, face: h('span', {}, w.en), w },
+        { k, face: w.pairA ? h('span', {}, w.pairA) : w.pic ? h('span', { class: 'e' }, w.pic) : h('span', {}, w.ru), w },
+        { k, face: h('span', {}, w.pairB || w.en), w },
       ]));
       let open = [], pairs = 0, tries = 0, lock = false;
       const mistakes = [];
@@ -168,7 +170,7 @@
             if (a.k === b.k) {
               a.done = b.done = true;
               a.el.classList.add('done'); b.el.classList.add('done');
-              speak(a.w.en);
+              speak(a.w.say || a.w.en);
               pairs++; open = [];
               ctx.score(true, true);
               updateInfo();
@@ -195,7 +197,7 @@
     items: u => sample(u.vocab, Math.min(8, u.vocab.length)),
     run(ctx, items) {
       runRounds(ctx, items, (w, body, answer) => {
-        const target = w.en;
+        const target = w.target || w.en;
         const letters = shuffle(target.split('').map((ch, idx) => ({ ch, idx })));
         let picked = [];
         let hintsUsed = 0;
@@ -226,6 +228,7 @@
         }, '💡 Hint');
         body.append(
           w.pic ? h('div', { class: 'emoji' }, w.pic) : null,
+          w.prompt || (!w.pic && w.ru) ? h('div', { class: 'prompt' }, w.prompt || w.ru) : null,
           h('div', { class: 'row' }, sayBtn(target), hintBtn),
           h('div', { class: 'hint' }, `The word has ${target.replace(/ /g, '').length} letters.`),
           slots, tiles,
@@ -299,4 +302,5 @@
   };
 
   MQ.games = games;
+  MQ.gameKit = { runRounds, optionButtons, sayBtn, bar, praise };
 })();
