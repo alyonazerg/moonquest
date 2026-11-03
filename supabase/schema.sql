@@ -30,6 +30,7 @@ create table if not exists progress (
   total int,
   mistakes jsonb default '[]'::jsonb,
   plays int default 0,
+  data jsonb,                                 -- Anki schedule for flashcard decks
   updated_at timestamptz default now(),
   primary key (student_id, key)
 );

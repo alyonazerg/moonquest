@@ -68,12 +68,7 @@
   }
   const hasVerbs = (u) => (u.verbs || []).length > 0;
 
-  games.vflash = {
-    title: 'Verb cards', icon: '🃏', desc: 'Say the three forms. Tap the card to check.',
-    available: hasVerbs,
-    items: u => shuffle(u.verbs).map(v => ({ en: v.base, ru: `${v.v2} – ${v.v3}` + (v.ru ? ` · ${v.ru}` : ''), say: sayForms(v) })),
-    run: (ctx, items) => games.flash.run(ctx, items),
-  };
+  games.vflash = { available: () => false }; // real game in anki.js (keeps it first in the list)
 
   games.vchoose = {
     title: 'Choose the form', icon: '🎯', desc: 'Choose the Past Simple or Past Participle.',
@@ -116,7 +111,9 @@
         const checkBtn = h('button', { class: 'primary', onclick: () => check() }, 'Check ✔');
         const check = () => {
           if (checkBtn.disabled) return;
-          const okA = norm(a.value) === norm(v.v2), okB = norm(b.value) === norm(v.v3);
+          // "was/were": either word (or both) is right
+          const same = (typed, form) => [form, ...form.split('/')].some(f => norm(f) === norm(typed));
+          const okA = same(a.value, v.v2), okB = same(b.value, v.v3);
           a.style.background = okA ? 'var(--good)' : 'var(--bad)';
           b.style.background = okB ? 'var(--good)' : 'var(--bad)';
           a.disabled = b.disabled = checkBtn.disabled = true;

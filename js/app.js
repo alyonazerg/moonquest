@@ -67,7 +67,10 @@
     const [sets, assigns] = await Promise.all([store.sets(), store.assignments()]);
     const mine = new Set(assigns.filter(a => a.student_id === store.me.id).map(a => a.set_id));
     const tasks = sets.filter(s => mine.has(s.id));
-    const myCourses = store.me.course && courses[store.me.course] ? [courses[store.me.course]] : Object.values(courses);
+    // the irregular verbs galaxy is for everyone except the Academy Stars 2 course
+    const own = store.me.course && courses[store.me.course] ? [courses[store.me.course]] : [courses.as2, courses.as4];
+    const myCourses = own.filter(c => c.id !== 'irr');
+    const showVerbs = store.me.course !== 'as2';
     app.append(
       h('h1', {}, `Hello, ${store.me.name}! 👋`),
       tasks.length ? h('h2', {}, '🗂 My tasks') : null,
@@ -84,6 +87,13 @@
           h('div', { class: 'title' }, u.title),
           h('div', { class: 'muted' }, c.title),
           h('div', { class: 'stars' }, `★ ${unitStars(c, u)} / ${gameIds(u).length * 3}`))))),
+      showVerbs ? h('h2', {}, '🔁 Irregular verbs galaxy') : null,
+      showVerbs ? h('div', { class: 'grid' }, courses.irr.units.map(u =>
+        h('a', { class: 'tile', href: `${courses.irr.href}/${u.id}` },
+          h('div', { class: 'big' }, u.icon),
+          h('div', { class: 'title' }, u.title),
+          h('div', { class: 'muted' }, u.subtitle),
+          h('div', { class: 'stars' }, `★ ${unitStars(courses.irr, u)} / ${gameIds(u).length * 3}`)))) : null,
     );
   }
 
@@ -104,6 +114,7 @@
       h('a', { href: c === SETS ? '#/' : '#/', class: 'back' }, '← Home'),
       h('h1', {}, `${u.icon || '🪐'} ${u.title}`),
       h('p', { class: 'muted' }, u.subtitle || ''),
+      u.note ? h('div', { class: 'panel note' }, h('div', { class: 'big-note' }, '💡'), h('p', {}, u.note)) : null,
       (u.grammar || []).length ? h('div', { class: 'panel left' },
         h('h2', {}, '📘 Grammar'),
         u.grammar.map((g, k) => h('div', { class: 'topic' },
@@ -133,7 +144,7 @@
     window.scrollTo(0, 0);
     const root = h('div');
     const ctx = {
-      root, unit: u,
+      root, unit: u, key: c.key(u, gameId), override: !!itemsOverride,
       finish(correct, total, mistakes) {
         const stars = MQ.starsFor(correct, total);
         if (!itemsOverride || label !== 'mistakes only') store.record(c.key(u, gameId), { stars, correct, total, mistakes });
@@ -143,7 +154,7 @@
           h('h2', {}, stars === 3 ? 'Excellent!' : stars === 2 ? 'Good work!' : 'Keep practising!'),
           h('div', { class: 'stars', style: 'font-size:2em' }, starStr(stars)),
           h('p', {}, `Correct: ${correct} / ${total}`),
-          mistakes.length ? h('p', { class: 'muted' }, 'Practise these again: ' + mistakes.map(m => m.en || m.q || '').join(', ')) : null,
+          mistakes.length ? h('p', { class: 'muted' }, 'Practise these again: ' + mistakes.map(m => m.en || m.q || m.base || '').join(', ')) : null,
           h('div', { class: 'row' },
             mistakes.length ? h('button', { class: 'primary', onclick: () => play(c, u, gameId, MQ.shuffle(mistakes), 'mistakes only') }, `🔁 Practise mistakes (${mistakes.length})`) : null,
             h('button', { onclick: () => play(c, u, gameId, itemsOverride, label) }, '▶ Play again'),

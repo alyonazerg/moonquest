@@ -15,9 +15,16 @@
 Без базы данных всё работает в одном браузере. Чтобы ученицы занимались со своих устройств — подключите Supabase по инструкции [SETUP.md](SETUP.md).
 
 ## Игры
-Слова: Word cards, Listen and choose, Find pairs, Spell the word.
+Карточки в стиле Anki (Flashcards / Verb flashcards): карточка переворачивается, ученица оценивает себя
+Again / Hard / Good / Easy, и каждая карточка возвращается тогда, когда её пора повторить.
+Слова: Listen and choose, Find pairs, Spell the word.
 Грамматика: Choose the right word (по всем темам или по одной — ▶ Practise), Make a sentence.
 Неправильные глаголы: Verb cards, Choose the form, Write the forms, Spell the form, Verb pairs.
+
+## 🔁 Irregular verbs galaxy
+Готовые группы неправильных глаголов по созвучию и паттерну: cut–cut–cut, buy–bought, sing–sang–sung,
+know–knew–known, sleep–slept, send–sent, make–made–made, write–wrote–written, speak–spoke–spoken,
+eat–ate–eaten и особые (be, go, do, come). Файл `data/irregular-verbs.js`.
 
 ## Как добавить юнит учебника
 Скопировать `data/as2-unit2.js`, заменить содержимое и подключить в `index.html`.

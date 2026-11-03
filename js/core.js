@@ -3,6 +3,7 @@ window.MQ = (function () {
   const courses = {
     as2: { id: 'as2', title: 'Academy Stars 2', icon: '🚀', units: [] },
     as4: { id: 'as4', title: 'Academy Stars 4', icon: '🛸', units: [] },
+    irr: { id: 'irr', title: 'Irregular verbs', icon: '🔁', units: [] },
   };
   Object.values(courses).forEach(c => { c.href = `#/c/${c.id}`; });
 

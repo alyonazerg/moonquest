@@ -143,16 +143,33 @@
     }
   };
   store.getStars = (key) => (progressCache[key] || {}).stars || 0;
-  store.record = async function (key, { stars, correct, total, mistakes }) {
+  // Save one progress row. "data" holds the Anki schedule of a deck.
+  let noDataColumn = false;
+  async function put(rec) {
+    progressCache[rec.key] = rec;
     if (!store.me) return;
+    const row = Object.assign({}, rec);
+    if (noDataColumn) delete row.data;
+    try { await store.saveProgress(store.me.id, row); }
+    catch (e) {
+      if (!noDataColumn && /data/.test(e.message)) { noDataColumn = true; console.warn('progress.data column missing — run supabase/002_update.sql'); return put(rec); }
+      console.warn('progress save', e); MQ.toast('⚠️ Progress not saved: ' + e.message);
+    }
+  }
+  store.record = async function (key, { stars, correct, total, mistakes, data }) {
     const prev = progressCache[key] || {};
-    const rec = {
+    await put({
       key, stars: Math.max(stars, prev.stars || 0), correct, total,
       mistakes: (mistakes || []).slice(0, 30).map(m => m.en || m.q || m.base || String(m)),
       plays: (prev.plays || 0) + 1, updated_at: new Date().toISOString(),
-    };
-    progressCache[key] = rec;
-    try { await store.saveProgress(store.me.id, rec); } catch (e) { console.warn('progress save', e); MQ.toast('⚠️ Progress not saved: ' + e.message); }
+      data: data !== undefined ? data : prev.data,
+    });
+  };
+  // Anki schedule for a deck: { cardId: { due, ivl, ease, reps, lapses } }
+  store.deck = (key) => Object.assign({}, (progressCache[key] || {}).data || {});
+  store.saveDeck = async function (key, data) {
+    const prev = progressCache[key] || { key, stars: 0, plays: 0, mistakes: [] };
+    await put(Object.assign({}, prev, { key, data, updated_at: new Date().toISOString() }));
   };
 
   MQ.store = store;
