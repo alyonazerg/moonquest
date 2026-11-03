@@ -40,18 +40,21 @@
   // ---------- dialogue player ----------
   // Every speaker gets their own voice (male / female, adult / child). Recorded Mistral audio is used
   // when there is one (boys and men: the second voice, saved as "♂ text"). One playback at a time, with pause.
-  const FEMALE_V = /samantha|karen|moira|tessa|serena|fiona|victoria|kate|susan|martha|allison|ava|zira|hazel|libby|sonia|catherine|emily|joanna|amy|nicky|shelley|sandy|flo|female|woman/i;
-  const MALE_V = /daniel|alex|fred|\btom\b|oliver|arthur|rishi|aaron|david|mark|george|ryan|gordon|\blee\b|eddy|reed|rocko|ralph|bruce|albert|male|\bman\b/i;
+  // Natural voices only, best first (British first). Novelty / robotic voices are never used.
+  const FEMALE_BEST = ['Serena', 'Kate', 'Martha', 'Stephanie', 'Libby', 'Sonia', 'Google UK English Female', 'Microsoft Hazel', 'Microsoft Libby', 'Samantha', 'Karen', 'Moira', 'Tessa', 'Fiona', 'Allison', 'Ava', 'Susan', 'Microsoft Zira', 'Google US English'];
+  const MALE_BEST = ['Daniel', 'Arthur', 'Google UK English Male', 'Microsoft Ryan', 'Microsoft George', 'Oliver', 'Thomas', 'Tom', 'Alex', 'Aaron', 'Rishi', 'Microsoft David', 'Microsoft Mark', 'Microsoft Guy'];
+  const NOVELTY = /fred|albert|bruce|ralph|junior|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|organ|trinoids|whisper|zarvox|jester|superstar|wobble|rocko|grandpa|grandma|eddy|reed|sandy|shelley|flo\b|kathy|princess|vicki|victoria|agnes/i;
   const player = { playing: false, paused: false, stop: false, audio: null, onchange: null, session: 0 };
   const changed = () => player.onchange && player.onchange();
   function voicesFor(people) {
-    const all = ('speechSynthesis' in window ? speechSynthesis.getVoices() : []).filter(v => /^en/i.test(v.lang));
+    const all = ('speechSynthesis' in window ? speechSynthesis.getVoices() : []).filter(v => /^en/i.test(v.lang) && !NOVELTY.test(v.name));
+    const ranked = (list) => list.map(n => all.find(v => v.name.toLowerCase().startsWith(n.toLowerCase()) || v.name.toLowerCase().includes(n.toLowerCase()))).filter(Boolean);
+    const female = ranked(FEMALE_BEST), male = ranked(MALE_BEST);
     const used = new Set();
     const map = {};
     people.forEach(name => {
-      const male = MQ.speaker(name).male;
-      const fits = all.filter(v => (male ? MALE_V : FEMALE_V).test(v.name) && !(male ? FEMALE_V : MALE_V).test(v.name));
-      const v = fits.find(x => !used.has(x)) || all.find(x => !used.has(x)) || all[0] || null;
+      const pool = MQ.speaker(name).male ? male : female;
+      const v = pool.find(x => !used.has(x)) || pool[0] || all.find(x => !used.has(x)) || all[0] || null;
       if (v) used.add(v);
       map[name] = v;
     });
@@ -73,16 +76,20 @@
       if (!alive()) break;
       const sp = MQ.speaker(who);
       const url = MQ.store && (sp.male ? MQ.store.audioUrl('♂ ' + text) : MQ.store.audioUrl(text));
+      // any problem with one line must not stop the player (or leave it "playing" for ever)
       await new Promise((ok) => {
-        if (url) { const a = new Audio(url); player.audio = a; a.onended = ok; a.onerror = ok; a.play().catch(ok); return; }
-        if (!('speechSynthesis' in window)) return ok();
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'en-GB'; u.rate = 0.85;
-        if (voices[who]) u.voice = voices[who];
-        // different pitch for every kind of speaker, so voices differ even with one system voice
-        u.pitch = sp.male ? (sp.adult ? 0.75 : 1.1) : (sp.adult ? 1.0 : 1.35);
-        u.onend = ok; u.onerror = ok;
-        speechSynthesis.speak(u);
+        try {
+          if (url) { const a = new Audio(url); player.audio = a; a.onended = ok; a.onerror = ok; a.play().catch(ok); return; }
+          if (!('speechSynthesis' in window)) return ok();
+          const u = new SpeechSynthesisUtterance(text);
+          u.lang = 'en-GB'; u.rate = 0.85;
+          try { if (voices[who]) u.voice = voices[who]; } catch (e) { /* default voice */ }
+          // natural pitch (a lowered pitch sounds hoarse); children only a little higher
+          u.pitch = sp.adult ? 1 : 1.12;
+          u.onend = ok; u.onerror = ok;
+          speechSynthesis.speak(u);
+          setTimeout(ok, 1500 + text.length * 160); // safety net if the browser never says "end"
+        } catch (e) { ok(); }
       });
       player.audio = null;
       await new Promise(r => setTimeout(r, 350));
@@ -326,5 +333,5 @@
     });
     return tasks;
   }
-  MQ.vprCheck = { checkField, scoreForm, validate, normalize };
+  MQ.vprCheck = { checkField, scoreForm, validate, normalize, voicesFor };
 })();

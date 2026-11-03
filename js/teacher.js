@@ -174,7 +174,7 @@
     const [sets, students, assigns] = await Promise.all([store.sets(), store.students(), store.assignments()]);
     const names = Object.fromEntries(students.map(s => [s.id, s.name]));
     app.append(
-      h('div', { class: 'row' }, h('a', { class: 'btn primary', href: '#/teacher/set/new' }, '＋ Новый набор')),
+      h('div', { class: 'row' }, h('a', { class: 'btn primary', href: '#/teacher/set/new' }, '＋ Новый набор'), h('a', { class: 'btn primary', href: '#/teacher/set/new-vpr' }, '📝 ＋ Новый вариант ВПР')),
       sets.length ? h('div', { class: 'grid', style: 'margin-top:16px' }, sets.map(set => {
         const who = assigns.filter(a => a.set_id === set.id).map(a => names[a.student_id]).filter(Boolean);
         return h('div', { class: 'tile' },
@@ -190,13 +190,13 @@
     );
   }
 
-  async function setEditor(app, id) {
+  async function setEditor(app, id, startKind) {
     header(app, 'sets');
     const [existing, students, assigns] = await Promise.all([id ? store.getSet(id) : null, store.students(), store.assignments()]);
-    const set = existing || { title: '', kind: 'words', items: [] };
+    const set = existing || { title: '', kind: startKind || 'words', items: [] };
     let items = set.items.map(x => Object.assign({}, x));
     const title = input({ value: set.title, placeholder: 'Название, например: Food · Unit 3' });
-    const kind = h('select', { class: 'field' }, h('option', { value: 'words' }, '📝 Слова'), h('option', { value: 'verbs' }, '🔁 Неправильные глаголы'), h('option', { value: 'jeopardy' }, '🏆 Своя игра (Jeopardy)'), h('option', { value: 'vpr' }, '📝 Тест по юниту AS2 (формат ВПР)'));
+    const kind = h('select', { class: 'field' }, h('option', { value: 'words' }, '📝 Слова'), h('option', { value: 'verbs' }, '🔁 Неправильные глаголы'), h('option', { value: 'jeopardy' }, '🏆 Своя игра (Jeopardy)'), h('option', { value: 'vpr' }, '📝 ВПР: вариант или тест по юниту AS2'));
     kind.value = set.kind;
     // default unit: the one the assigned student is studying now
     const firstAssigned = students.find(st => assigns.some(a => a.set_id === set.id && a.student_id === st.id));
@@ -209,7 +209,10 @@
     const aiBtn = h('button', { class: 'primary', onclick: async () => {
       if (!MQ.ai.canMakeCards()) { aiMsg.textContent = `Сначала добавьте ключ ${MQ.ai.PROVIDER_NAMES[MQ.ai.settings.provider]} во вкладке «Настройки».`; return; }
       if (kind.value === 'vpr') {
-        if (!unitSel.value && !aiText.value.trim() && !files.files.length) { aiMsg.textContent = 'Выберите юнит выше (📍) или добавьте материал.'; return; }
+        if (!unitSel.value && !aiText.value.trim() && !files.files.length) {
+          // a general ВПР variant: topics and grammar of the 4th grade (from the ВПР description)
+          aiText.value = 'A general ВПР variant for the 4th grade. Topics: family, my day, food, birthday, hobbies, pets, sport, holidays, my room and house, school and subjects, friends, my town, animals, weather and seasons, shopping, Russia and English-speaking countries. Grammar: Present Simple, Present Continuous, Past Simple, to be going to, Future Simple (will), must / have to, the negative pronoun no, comparatives and superlatives (good – better – best), time (5 o’clock).';
+        }
         aiBtn.disabled = true; aiMsg.textContent = '✨ Составляю тест: 4 задания… (30–60 секунд)';
         try {
           const r = await MQ.ai.generateVpr({ text: aiText.value.trim(), files: [...files.files], unitKey: unitSel.value });
@@ -249,8 +252,8 @@
     const pasteHelp = () => {
       paste.placeholder = { verbs: 'go - went - gone идти\nsee saw seen', jeopardy: 'Animals | 100 | Как по-английски «кошка»? | cat\nPast Simple | 200 | go → ? | went' }[kind.value] || 'apple - яблоко 🍎\nbread - хлеб';
       aiText.placeholder = kind.value === 'jeopardy' ? 'Тема или материал: например «Past Simple + слова Unit 2: castle, princess, goose…». Можно фото страницы.' : 'Вставьте текст, список слов или страницу учебника…';
-      aiBtn.textContent = kind.value === 'vpr' ? '✨ Сгенерировать тест по юниту' : kind.value === 'jeopardy' ? '✨ Сгенерировать игру с ИИ' : '✨ Распознать с ИИ';
-      if (kind.value === 'vpr') aiText.placeholder = 'Можно ничего не писать: ИИ возьмёт слова и грамматику выбранного юнита (📍). Или добавьте свой текст / фото страницы.';
+      aiBtn.textContent = kind.value === 'vpr' ? '✨ Сгенерировать ВПР с ИИ' : kind.value === 'jeopardy' ? '✨ Сгенерировать игру с ИИ' : '✨ Распознать с ИИ';
+      if (kind.value === 'vpr') aiText.placeholder = 'Тест по юниту: выберите юнит (📍) — ИИ возьмёт его слова и грамматику. Новый вариант ВПР: оставьте «не прикреплять» и напишите темы, например: «Темы 4 класса: семья, школа, животные, погода. Грамматика: Present Simple, Past Simple, going to, can, степени сравнения».';
     };
 
     // --- editable table ---
@@ -326,7 +329,7 @@
     const limitUnits = () => {
       const vpr = kind.value === 'vpr';
       [...unitSel.options].forEach(o => { o.hidden = vpr && o.value && !o.value.startsWith('as2/'); });
-      if (vpr && unitSel.value && !unitSel.value.startsWith('as2/')) unitSel.value = (MQ.courses.as2.units[0] ? 'as2/' + MQ.courses.as2.units[0].id : '');
+      if (vpr && unitSel.value && !unitSel.value.startsWith('as2/')) unitSel.value = '';
     };
     kind.onchange = () => { if (items.length && !confirm('Сменить тип? Таблица будет очищена.')) { kind.value = prevKind; return; } prevKind = kind.value; items = []; limitUnits(); renderTable(); };
     limitUnits();
@@ -340,7 +343,7 @@
     app.append(
       h('a', { href: '#/teacher/sets', class: 'muted' }, '← Все наборы'),
       h('div', { class: 'panel' }, h('h2', {}, existing ? '✏️ Набор карточек' : '＋ Новый набор'), h('div', { class: 'row' }, title, kind),
-        h('label', { class: 'lbl' }, '📍 Прикрепить к юниту (карточки появятся на его странице)'), unitSel),
+        h('label', { class: 'lbl' }, '📍 Прикрепить к юниту (карточки появятся на его странице). Для нового варианта ВПР — «не прикреплять»: он появится в папке «ВПР 4 класс»'), unitSel),
       h('div', { class: 'panel' },
         h('h2', {}, '✨ Распознать с помощью ИИ'),
         h('p', { class: 'hint' }, `Фото страницы учебника, скриншот или текст: ИИ найдёт слова, переведёт и подберёт эмодзи. Сейчас работает через ${MQ.ai.PROVIDER_NAMES[MQ.ai.settings.provider]} (меняется в Настройках).`),
@@ -475,7 +478,7 @@
       if (!a) return studentsScreen(app);
       if (a === 'st') return studentScreen(app, b);
       if (a === 'sets') return setsScreen(app);
-      if (a === 'set') return setEditor(app, b === 'new' ? null : b);
+      if (a === 'set') return setEditor(app, b === 'new' || b === 'new-vpr' ? null : b, b === 'new-vpr' ? 'vpr' : null);
       if (a === 'settings') return settingsScreen(app);
       return studentsScreen(app);
     },

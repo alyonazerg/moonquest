@@ -138,7 +138,23 @@
         h('div', { class: 'title' }, u.title),
         h('div', { class: 'muted' }, u.subtitle || ''),
         h('div', { class: 'stars' }, `★ ${unitStars(c, u)} / ${gameIds(u).length * 3}`)))),
+      c.id === 'vpr' ? teacherVariants() : null,
     );
+  }
+  // ВПР tests made in the teacher room that are not attached to a unit: extra variants in the ВПР folder
+  function teacherVariants() {
+    const box = h('div');
+    store.sets().then(sets => {
+      const list = sets.filter(s => s.kind === 'vpr' && !s.unit_key);
+      if (!list.length) return;
+      box.append(h('h2', {}, '✨ New variants'), h('div', { class: 'grid' }, list.map(s => {
+        const su = MQ.sets.setToUnit(s);
+        return h('a', { class: 'tile', href: `#/s/${s.id}/vpr` },
+          h('div', { class: 'big' }, '📝'), h('div', { class: 'title' }, s.title), h('div', { class: 'muted' }, su.subtitle),
+          h('div', { class: 'stars' }, `★ ${unitStars(SETS, su)} / 3`));
+      })));
+    }).catch(() => {});
+    return box;
   }
 
   // Card sets attached to a textbook unit: the teacher's and this student's own
