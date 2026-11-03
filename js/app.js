@@ -64,16 +64,25 @@
 
   async function home() {
     if (!store.me) { location.replace('#/who'); return; }
-    const [sets, assigns] = await Promise.all([store.sets(), store.assignments()]);
+    const [sets, assigns, students] = await Promise.all([store.sets(), store.assignments(), store.students()]);
+    const fresh = students.find(s => s.id === store.me.id);
+    if (fresh) Object.assign(store.me, { name: fresh.name, course: fresh.course, current_unit: fresh.current_unit });
     const mine = new Set(assigns.filter(a => a.student_id === store.me.id).map(a => a.set_id));
-    const tasks = sets.filter(s => mine.has(s.id));
+    const tasks = sets.filter(s => mine.has(s.id) || s.student_id === store.me.id);
+    const now = store.me.current_unit && MQ.findUnit(store.me.current_unit);
     // the irregular verbs galaxy is for everyone except the Academy Stars 2 course
     const own = store.me.course && courses[store.me.course] ? [courses[store.me.course]] : [courses.as2, courses.as4];
     const myCourses = own.filter(c => c.id !== 'irr');
     const showVerbs = store.me.course !== 'as2';
     app.append(
       h('h1', {}, `Hello, ${store.me.name}! 👋`),
-      tasks.length ? h('h2', {}, '🗂 My tasks') : null,
+      now ? h('div', { class: 'panel now' },
+        h('div', {}, h('div', { class: 'muted' }, '📍 Now we study'), h('div', { class: 'title' }, now.u.title), h('div', { class: 'muted' }, now.c.title)),
+        h('div', { class: 'row' },
+          h('a', { class: 'btn', href: `${now.c.href}/${now.u.id}` }, '🪐 Open'),
+          h('a', { class: 'btn primary', href: `#/add/${now.c.id}/${now.u.id}` }, '＋ Add my words'))) :
+        h('div', { class: 'row' }, h('a', { class: 'btn primary', href: '#/add' }, '＋ Add my words')),
+      tasks.length ? h('h2', {}, '🗂 My cards & tasks') : null,
       tasks.length ? h('div', { class: 'grid' }, tasks.map(s => {
         const u = MQ.sets.setToUnit(s);
         return h('a', { class: 'tile', href: `#/s/${s.id}` },
@@ -115,11 +124,98 @@
     );
   }
 
+  // Card sets attached to a textbook unit: the teacher's and this student's own
+  function extraCards(c, u) {
+    if (c === SETS || !store.me) return null;
+    const box = h('div');
+    const key = `${c.id}/${u.id}`;
+    store.sets().then(sets => {
+      const list = sets.filter(s => s.unit_key === key && (!s.student_id || s.student_id === store.me.id));
+      box.append(h('div', { class: 'panel' },
+        h('h2', {}, '🃏 Extra cards'),
+        list.length ? h('div', { class: 'grid' }, list.map(s => {
+          const su = MQ.sets.setToUnit(s);
+          return h('a', { class: 'tile', href: `#/s/${s.id}` },
+            h('div', { class: 'big' }, s.student_id ? '✍️' : su.icon), h('div', { class: 'title' }, s.title), h('div', { class: 'muted' }, su.subtitle),
+            h('div', { class: 'stars' }, `★ ${unitStars(SETS, su)} / ${gameIds(su).length * 3}`));
+        })) : h('p', { class: 'muted' }, 'No extra cards yet.'),
+        h('div', { class: 'row', style: 'margin-top:12px' }, h('a', { class: 'btn primary', href: `#/add/${c.id}/${u.id}` }, '＋ Add my words'))));
+    }).catch(() => {});
+    return box;
+  }
+
+  // Student adds own words: AI makes cards (word, translation, emoji); they are attached to a unit
+  async function addScreen(cid, uid) {
+    if (!store.me) { location.replace('#/who'); return; }
+    const opts = MQ.unitOptions().filter(o => !store.me.course || o.c.id === store.me.course || (o.c.id === 'irr' && store.me.course !== 'as2'));
+    const unitSel = h('select', { class: 'field' }, opts.map(o => h('option', { value: o.key }, o.label)));
+    unitSel.value = cid && uid ? `${cid}/${uid}` : (store.me.current_unit || (opts[0] || {}).key || '');
+    let items = [];
+    const words = h('textarea', { class: 'field', rows: 5, placeholder: 'apple\nbanana\nride a bike' });
+    const photo = h('input', { type: 'file', accept: 'image/*', class: 'field' });
+    const msg = h('div', { class: 'hint' });
+    const table = h('div', { class: 'table-wrap' });
+    const render = () => {
+      table.innerHTML = '';
+      if (!items.length) return;
+      table.append(h('table', { class: 'table' },
+        h('tr', {}, h('th', {}, 'English'), h('th', {}, 'Перевод'), h('th', {}, '🖼'), h('th', {})),
+        items.map((it, k) => h('tr', {},
+          ['en', 'ru', 'pic'].map(f => h('td', {}, h('input', { class: 'cell' + (f === 'pic' ? ' pic' : ''), value: it[f] || '', oninput: (e) => { it[f] = e.target.value; } }))),
+          h('td', {}, h('button', { class: 'chip', onclick: () => { items.splice(k, 1); render(); } }, '🗑'))))));
+    };
+    const makeBtn = h('button', { class: 'primary', onclick: async () => {
+      if (!words.value.trim() && !photo.files.length) { msg.textContent = 'Write some words or add a photo.'; return; }
+      makeBtn.disabled = true; msg.textContent = '✨ Making cards… (10–30 seconds)';
+      try {
+        if (!MQ.ai.canMakeCards()) throw new Error('no-ai');
+        const r = await MQ.ai.recognize({ text: words.value.trim(), files: [...photo.files] });
+        const got = r.kind === 'verbs' ? r.items.map(v => ({ en: v.base, ru: `${v.v2} – ${v.v3}${v.ru ? ' · ' + v.ru : ''}` })) : r.items;
+        items = items.concat(got);
+        msg.textContent = `✅ ${got.length} cards. Check them and press Save.`;
+      } catch (e) {
+        // without AI: make simple cards from the lines ("apple - яблоко 🍎")
+        const r = MQ.sets.parse('words', words.value);
+        items = items.concat(r.items);
+        msg.textContent = e.message === 'no-ai' ? 'Cards are ready — add the translations yourself.' : '⚠️ AI: ' + e.message + ' — you can add translations yourself.';
+      }
+      words.value = ''; makeBtn.disabled = false; render();
+    } }, '✨ Make cards');
+    const saveBtn = h('button', { class: 'primary', onclick: async () => {
+      const clean = items.filter(it => it.en && it.en.trim()).map(it => ({ en: it.en.trim(), ru: (it.ru || '').trim(), pic: (it.pic || '').trim() }));
+      if (!clean.length) { msg.textContent = 'Add at least one card.'; return; }
+      saveBtn.disabled = true;
+      try {
+        const key = unitSel.value;
+        const target = MQ.findUnit(key);
+        const all = await store.sets();
+        const own = all.find(s => s.student_id === store.me.id && s.unit_key === key && s.kind === 'words');
+        const set = own
+          ? Object.assign(own, { items: own.items.concat(clean.filter(x => !own.items.some(o => o.en.toLowerCase() === x.en.toLowerCase()))) })
+          : { title: `My words · ${target ? target.u.title : 'cards'}`, kind: 'words', items: clean, unit_key: key, student_id: store.me.id };
+        const saved = await store.saveSet(set);
+        location.hash = `#/s/${saved.id}`;
+      } catch (e) { msg.textContent = '⚠️ ' + e.message; saveBtn.disabled = false; }
+    } }, '💾 Save my cards');
+    app.append(
+      h('a', { href: '#/', class: 'back' }, '← Home'),
+      h('h1', {}, '✍️ Add my words'),
+      h('div', { class: 'panel narrow', style: 'max-width:640px' },
+        h('label', { class: 'lbl' }, '📍 Unit'), unitSel,
+        h('label', { class: 'lbl' }, 'Write English words — one per line'), words,
+        h('label', { class: 'lbl' }, '…or take a photo of the page'), photo,
+        h('div', { class: 'row', style: 'margin-top:10px' }, makeBtn), msg),
+      h('div', { class: 'panel' }, h('h2', {}, '🃏 My new cards'), table, h('div', { class: 'row', style: 'margin-top:12px' }, saveBtn)),
+    );
+    render();
+  }
+
   function unit(c, u) {
     app.append(
       c === courses.irr ? h('a', { href: c.href, class: 'back' }, '← ' + c.title) : h('a', { href: '#/', class: 'back' }, '← Home'),
       h('h1', {}, `${u.icon || '🪐'} ${u.title}`),
       h('p', { class: 'muted' }, u.subtitle || ''),
+      extraCards(c, u),
       u.note ? h('div', { class: 'panel note' }, h('div', { class: 'big-note' }, '💡'), h('p', {}, u.note)) : null,
       (u.grammar || []).length ? h('div', { class: 'panel left' },
         h('h2', {}, '📘 Grammar'),
@@ -202,6 +298,7 @@
       const [, top, a, b, c3] = parts;
       if (top === 'who') { await store.setMe(null); renderWho(); await whoScreen(); }
       else if (top === 'login' && a) await loginLink(a, decodeURIComponent(b || ''));
+      else if (top === 'add') await addScreen(a, b);
       else if (top === 'teacher') await MQ.teacher.route(app, parts);
       else if (top === 's' && a) await setRoute(a, b);
       else if (top === 'c' && courses[a]) {

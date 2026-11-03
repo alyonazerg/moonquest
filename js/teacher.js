@@ -42,6 +42,13 @@
     statusEl.textContent = failed ? `⚠️ Готово с ошибками: ${failed} из ${done}. ${lastErr}` : `✅ Озвучено: ${done}.`;
   }
 
+  function unitSelect(value, emptyLabel) {
+    const sel = h('select', { class: 'field' }, h('option', { value: '' }, '— ' + emptyLabel + ' —'),
+      MQ.unitOptions().map(o => h('option', { value: o.key }, o.label)));
+    sel.value = value || '';
+    return sel;
+  }
+
   // ---------- screens ----------
   function tabs(active) {
     const t = (href, label, id) => h('a', { class: 'btn chip' + (active === id ? ' on' : ''), href }, label);
@@ -107,14 +114,16 @@
     } }, '🔗 Скопировать личную ссылку');
     const course = h('select', { class: 'field' }, Object.entries(COURSE_NAMES).map(([v, l]) => h('option', { value: v }, l)));
     course.value = s.course || '';
+    const nowUnit = unitSelect(s.current_unit || '', 'не выбран');
     const rows = progress.slice().sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)));
     app.append(
       h('a', { href: '#/teacher', class: 'muted' }, '← Все ученицы'),
       h('div', { class: 'panel' },
         h('h2', {}, '👧 ' + s.name),
         h('div', { class: 'row' }, nameF, course, h('span', {}, '🔑'), pinF,
-          h('button', { class: 'primary', onclick: async () => { await store.saveStudent({ id, name: nameF.value.trim() || s.name, course: course.value, pin: pinF.value.trim() || s.pin }); toast('Сохранено'); MQ.route(); } }, '💾 Сохранить'),
+          h('button', { class: 'primary', onclick: async () => { await store.saveStudent({ id, name: nameF.value.trim() || s.name, course: course.value, pin: pinF.value.trim() || s.pin, current_unit: nowUnit.value }); toast('Сохранено'); MQ.route(); } }, '💾 Сохранить'),
           h('button', { class: 'ghost', onclick: async () => { if (confirm(`Удалить ${s.name} и весь её прогресс?`)) { await store.deleteStudent(id); location.hash = '#/teacher'; } } }, '🗑 Удалить')),
+        h('label', { class: 'lbl' }, '📍 Сейчас проходим (сюда прикрепляются новые карточки ученицы)'), nowUnit,
         h('p', { class: 'hint' }, `Чтобы войти, ${s.name} выбирает своё имя и вводит код ${s.pin || ''}. Или отправьте ей личную ссылку — она откроет сайт сразу под её именем.`),
         h('div', { class: 'row' }, linkBtn)),
       h('div', { class: 'panel' },
@@ -148,7 +157,8 @@
           h('div', { class: 'big' }, set.kind === 'verbs' ? '🔁' : '📝'),
           h('div', { class: 'title' }, set.title),
           h('div', { class: 'muted' }, `${set.items.length} ${set.kind === 'verbs' ? 'глаголов' : 'слов'}`),
-          h('div', { class: 'muted' }, who.length ? '👧 ' + who.join(', ') : 'не назначен'),
+          set.unit_key ? h('div', { class: 'muted' }, '📍 ' + ((MQ.findUnit(set.unit_key) || {}).label || set.unit_key)) : null,
+          set.student_id ? h('div', { class: 'muted' }, '✍️ создала ' + (names[set.student_id] || 'ученица')) : h('div', { class: 'muted' }, who.length ? '👧 ' + who.join(', ') : 'не назначен'),
           h('div', { class: 'row', style: 'margin-top:8px' },
             h('a', { class: 'btn chip', href: `#/teacher/set/${set.id}` }, '✏️ Изменить'),
             h('a', { class: 'btn chip', href: `#/s/${set.id}` }, '▶ Играть')));
@@ -164,6 +174,9 @@
     const title = input({ value: set.title, placeholder: 'Название, например: Food · Unit 3' });
     const kind = h('select', { class: 'field' }, h('option', { value: 'words' }, '📝 Слова'), h('option', { value: 'verbs' }, '🔁 Неправильные глаголы'));
     kind.value = set.kind;
+    // default unit: the one the assigned student is studying now
+    const firstAssigned = students.find(st => assigns.some(a => a.set_id === set.id && a.student_id === st.id));
+    const unitSel = unitSelect(set.unit_key || (existing ? '' : (firstAssigned || students.find(st => st.current_unit) || {}).current_unit || ''), 'не прикреплять');
 
     // --- AI recognition ---
     const aiText = h('textarea', { class: 'field', rows: 4, placeholder: 'Вставьте текст, список слов или страницу учебника…' });
@@ -247,7 +260,8 @@
     const status = h('div', { class: 'hint' });
     app.append(
       h('a', { href: '#/teacher/sets', class: 'muted' }, '← Все наборы'),
-      h('div', { class: 'panel' }, h('h2', {}, existing ? '✏️ Набор карточек' : '＋ Новый набор'), h('div', { class: 'row' }, title, kind)),
+      h('div', { class: 'panel' }, h('h2', {}, existing ? '✏️ Набор карточек' : '＋ Новый набор'), h('div', { class: 'row' }, title, kind),
+        h('label', { class: 'lbl' }, '📍 Прикрепить к юниту (карточки появятся на его странице)'), unitSel),
       h('div', { class: 'panel' },
         h('h2', {}, '✨ Распознать с помощью ИИ'),
         h('p', { class: 'hint' }, `Фото страницы учебника, скриншот или текст: ИИ найдёт слова, переведёт и подберёт эмодзи. Сейчас работает через ${MQ.ai.PROVIDER_NAMES[MQ.ai.settings.provider]} (меняется в Настройках).`),
@@ -262,7 +276,7 @@
             .map(it => Object.fromEntries(Object.entries(it).filter(([, v]) => v).map(([k, v]) => [k, String(v).trim()])));
           if (!clean.length) { toast('Добавьте хотя бы одну карточку'); return; }
           try {
-            const saved = await store.saveSet({ id: set.id, title: title.value.trim() || 'Words', kind: kind.value, items: clean });
+            const saved = await store.saveSet({ id: set.id, title: title.value.trim() || 'Words', kind: kind.value, items: clean, unit_key: unitSel.value, student_id: set.student_id });
             for (const { s, cb } of checks) if (cb.checked !== mine.has(s.id)) await store.assign(s.id, saved.id, cb.checked);
             toast('💾 Сохранено');
             if (store.mode === 'cloud' && MQ.ai.hasKey()) await recordAudio([MQ.sets.setToUnit(saved)], status);

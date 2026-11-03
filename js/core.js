@@ -101,5 +101,11 @@ window.MQ = (function () {
     return it.pic ? h('div', { class: cls }, it.pic) : null;
   }
 
-  return { pic, courses, addUnit, load, save, h, shuffle, sample, norm, starsFor, uid, toast, speak, stopSpeech };
+  // [{ key: 'as2/u2', label: 'Academy Stars 2 · Unit 2 · My busy week', c, u }]
+  function unitOptions() {
+    return Object.values(courses).flatMap(c => c.units.map(u => ({ key: `${c.id}/${u.id}`, label: `${c.title} · ${u.title}`, c, u })));
+  }
+  function findUnit(key) { return unitOptions().find(o => o.key === key) || null; }
+
+  return { unitOptions, findUnit, pic, courses, addUnit, load, save, h, shuffle, sample, norm, starsFor, uid, toast, speak, stopSpeech };
 })();

@@ -231,33 +231,33 @@ textarea.field, input[type=file].field { width: 100%; }
 }
 
 /* ---------- Anki flashcards: real 3D flip ---------- */
-.card3d { perspective: 1400px; max-width: 500px; height: 340px; margin: 6px auto 0; cursor: pointer; }
+.card3d { -webkit-perspective: 1200px; perspective: 1200px; max-width: 500px; height: 340px; margin: 6px auto 0; cursor: pointer; transition: transform .2s; }
+.card3d:hover { transform: translateY(-4px); }
 .card3d .inner {
-  position: relative; width: 100%; height: 100%; transform-style: preserve-3d;
-  transition: transform .7s cubic-bezier(.3, 1.35, .45, 1);
+  position: relative; width: 100%; height: 100%;
+  -webkit-transform-style: preserve-3d; transform-style: preserve-3d;
+  transform: rotateY(0deg);
 }
-.card3d:hover .inner { transform: rotateX(4deg) rotateY(-4deg); }
 .card3d.flipped .inner { transform: rotateY(180deg); }
-.card3d.flipped:hover .inner { transform: rotateY(180deg); }
-.card3d.instant .inner { transition: none; }
 .card3d .face {
   position: absolute; inset: 0; border-radius: 30px; padding: 26px 22px; overflow: hidden;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
-  -webkit-backface-visibility: hidden; backface-visibility: hidden;
+  -webkit-backface-visibility: hidden; backface-visibility: hidden; z-index: 0;
   border: 1px solid rgba(255, 255, 255, .3);
   box-shadow: 0 24px 60px rgba(5, 0, 30, .6), inset 0 1px 0 rgba(255, 255, 255, .45), inset 0 -2px 0 rgba(0, 0, 0, .15);
 }
 .card3d .face::before { /* glass shine */
-  content: ""; position: absolute; inset: 0; pointer-events: none;
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: -1;
   background: linear-gradient(160deg, rgba(255, 255, 255, .28) 0%, rgba(255, 255, 255, .06) 35%, transparent 60%);
 }
 .card3d .face::after { /* glowing orb */
-  content: ""; position: absolute; width: 220px; height: 220px; right: -70px; bottom: -90px; border-radius: 50%; pointer-events: none;
+  content: ""; position: absolute; width: 220px; height: 220px; right: -70px; bottom: -90px; border-radius: 50%; pointer-events: none; z-index: -1;
   background: radial-gradient(circle, rgba(255, 255, 255, .25), transparent 70%);
 }
 .card3d .front { background: linear-gradient(150deg, #7a5cff 0%, #4b2fbf 45%, #26207a 100%); }
-.card3d .back { transform: rotateY(180deg); background: linear-gradient(150deg, #2fc7e8 0%, #2a6fd6 45%, #1d2f8a 100%); }
-.card3d .face > * { position: relative; z-index: 1; color: #fff; }
+.card3d .back { -webkit-transform: rotateY(180deg); transform: rotateY(180deg); background: linear-gradient(150deg, #2fc7e8 0%, #2a6fd6 45%, #1d2f8a 100%); }
+.card3d .face > * { color: #fff; }
+.card3d .emoji { filter: none; text-shadow: 0 8px 18px rgba(0, 0, 0, .35); }
 .card-pic.emoji { animation: none; font-size: 4.6em; }
 .card-pic.small.emoji { font-size: 2.6em; }
 .pic-img.card-pic { width: 140px; height: 140px; }
@@ -293,7 +293,7 @@ textarea.field, input[type=file].field { width: 100%; }
   .form-word { font-size: 1.05em; }
   .rate-row { gap: 6px; }
 }
-@media (prefers-reduced-motion: reduce) { .card3d .inner { transition: none; } }
+
 
 .note { display: flex; gap: 14px; align-items: center; text-align: left; max-width: 760px; }
 .note p { margin: 0; }
@@ -303,3 +303,7 @@ textarea.field, input[type=file].field { width: 100%; }
 .tile.folder { overflow: visible; box-shadow: 8px 8px 0 -2px rgba(155, 123, 255, .35), 16px 16px 0 -4px rgba(94, 231, 255, .22), var(--glass-shadow); }
 .tile.folder::after { display: none; }
 .tile.folder:hover { box-shadow: 10px 10px 0 -2px rgba(155, 123, 255, .45), 20px 20px 0 -4px rgba(94, 231, 255, .3), 0 26px 60px rgba(5, 0, 30, .6), 0 0 34px rgba(155, 123, 255, .45); }
+
+/* "now we study" banner */
+.panel.now { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; text-align: left; max-width: 760px; }
+.panel.now .title { font-weight: 900; font-size: 1.2em; }

@@ -86,11 +86,12 @@
     async signIn(email, password) { must(await db.auth.signInWithPassword({ email, password })); return true; },
     async signOut() { await db.auth.signOut(); },
     // Students (not signed in) can see only names; PIN codes are visible to the teacher only.
-    async students() { return must(await db.from('students').select(session ? '*' : 'id,name,course').order('name')); },
+    async students() { return must(await db.from('students').select(session ? '*' : 'id,name,course,current_unit').order('name')); },
     async checkPin(id, pin) { return !!must(await db.rpc('student_login', { sid: id, p: String(pin).trim() })); },
     async saveStudent(s) {
       const row = { name: s.name, course: s.course || null };
       if (s.pin !== undefined) row.pin = s.pin;
+      if (s.current_unit !== undefined) row.current_unit = s.current_unit || null;
       if (s.id) return must(await db.from('students').update(row).eq('id', s.id).select().single());
       return must(await db.from('students').insert(row).select().single());
     },
@@ -98,7 +99,8 @@
     async sets() { return must(await db.from('sets').select('*').order('created_at', { ascending: false })); },
     async getSet(id) { return must(await db.from('sets').select('*').eq('id', id).maybeSingle()); },
     async saveSet(set) {
-      const row = { title: set.title, kind: set.kind, items: set.items };
+      const row = { title: set.title, kind: set.kind, items: set.items, unit_key: set.unit_key || null };
+      if (set.student_id) row.student_id = set.student_id;
       if (set.id) return must(await db.from('sets').update(row).eq('id', set.id).select().single());
       return must(await db.from('sets').insert(row).select().single());
     },
@@ -129,6 +131,19 @@
 
   const store = cloudReady ? cloud : local;
   store.newPin = () => String(Math.floor(1000 + Math.random() * 9000));
+
+  // AI cards for students (no key in the browser): Supabase Edge Function "cards-ai" holds the key.
+  store.aiCards = async function ({ text, images }) {
+    if (store.mode !== 'cloud') throw new Error('AI for students works after the database is connected.');
+    const { data, error } = await db.functions.invoke('cards-ai', { body: { text, images } });
+    if (error) {
+      let msg = error.message;
+      try { msg = (await error.context.json()).error || msg; } catch (e) { /* keep message */ }
+      throw new Error(msg);
+    }
+    if (data && data.error) throw new Error(data.error);
+    return data;
+  };
 
   // ---------------- current student + progress cache ----------------
   let progressCache = {};

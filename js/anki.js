@@ -91,10 +91,22 @@
     const hint = h('div', { class: 'hint' }, 'Tap the card (or press Space) to see the answer');
     wrap.append(counts, card, h('div', { class: 'row', style: 'margin-top:14px' }, h('button', { class: 'chip', onclick: () => current && speak(current.faces.say) }, '🔊 Listen')), hint, rateRow);
 
+    // The flip is animated from JavaScript (Web Animations), so it works in every browser
+    // and is not switched off by CSS settings.
+    let anim = null;
     function flip() {
       if (!current) return;
       flipped = !flipped;
+      const from = flipped ? 0 : 180, to = flipped ? 180 : 0;
       card.classList.toggle('flipped', flipped);
+      if (anim) anim.cancel();
+      if (inner.animate) {
+        anim = inner.animate([
+          { transform: `rotateY(${from}deg)` },
+          { transform: `rotateY(${(from + to) / 2}deg) translateZ(70px) scale(1.06)`, offset: 0.5 },
+          { transform: `rotateY(${to}deg)` },
+        ], { duration: 650, easing: 'cubic-bezier(.45,.05,.25,1)' });
+      }
       if (flipped) { speak(current.faces.say); showRates(); }
     }
     function showRates() {
@@ -135,13 +147,12 @@
       counts.append(h('span', {}, `🃏 Cards left: ${left}`), h('span', {}, `✔ ${Object.keys(firstRating).length} / ${total}`));
       // reset to the front without animating
       flipped = false;
-      card.classList.add('instant'); card.classList.remove('flipped');
+      if (anim) { anim.cancel(); anim = null; }
+      card.classList.remove('flipped');
       inner.innerHTML = '';
       inner.append(
         h('div', { class: 'face front' }, ...current.faces.front, h('div', { class: 'face-hint' }, '↻ tap to flip')),
         h('div', { class: 'face back' }, ...current.faces.back));
-      void card.offsetWidth;
-      card.classList.remove('instant');
     }
     function onKey(e) {
       if (!wrap.isConnected) { document.removeEventListener('keydown', onKey); return; }

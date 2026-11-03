@@ -103,9 +103,14 @@ or for verbs:
   async function recognize({ text, files }) {
     const images = [];
     for (const f of files || []) images.push(await fileToDataUrl(f));
-    const prompt = PROMPT + (text ? '\n\nMaterial:\n' + text : '');
-    const raw = await (providers[settings.provider] || providers.mistral)(prompt, images);
-    const json = parseJson(raw);
+    let json;
+    if (recognizerReady()) {
+      const prompt = PROMPT + (text ? '\n\nMaterial:\n' + text : '');
+      json = parseJson(await (providers[settings.provider] || providers.mistral)(prompt, images));
+    } else {
+      // no key on this device (e.g. a student): ask the database's AI function
+      json = await MQ.store.aiCards({ text, images });
+    }
     json.kind = json.kind === 'verbs' ? 'verbs' : 'words';
     json.items = (json.items || []).filter(it => json.kind === 'verbs' ? it.base && it.v2 && it.v3 : it.en);
     return json;
@@ -113,15 +118,31 @@ or for verbs:
 
   // ---------- pictures for cards (OpenAI) ----------
   // Returns a small square WebP blob (about 15-30 KB) ready to store.
+  // Each image model takes slightly different options
+  function imageBody(model, prompt) {
+    if (/^dall-e-3/.test(model)) return { model, prompt, n: 1, size: '1024x1024', quality: 'standard', response_format: 'b64_json' };
+    if (/^dall-e-2/.test(model)) return { model, prompt, n: 1, size: '512x512', response_format: 'b64_json' };
+    return { model, prompt, n: 1, size: '1024x1024', quality: 'low' }; // gpt-image-*
+  }
   async function drawPicture(word, ru) {
     if (!settings.openaiKey) throw new Error('Для картинок нужен ключ OpenAI (Настройки).');
-    const data = await post('OpenAI', 'https://api.openai.com/v1/images/generations', { Authorization: 'Bearer ' + settings.openaiKey }, {
-      model: settings.imageModel, size: '1024x1024', quality: 'low', n: 1,
-      prompt: `A simple, cheerful flat illustration for a children's English vocabulary flashcard showing "${word}"${ru ? ` (meaning: ${ru})` : ''}. One clear subject, centred, bright colours, plain white background, no text, no letters.`,
-    });
-    const item = data.data[0];
-    const src = item.b64_json ? 'data:image/png;base64,' + item.b64_json : item.url;
-    return shrink(src, 320);
+    const prompt = `A simple, cheerful flat illustration for a children's English vocabulary flashcard showing "${word}"${ru ? ` (meaning: ${ru})` : ''}. One clear subject, centred, bright colours, plain white background, no text, no letters.`;
+    // If the chosen model is not available for this account, try the next one and remember what worked
+    const models = [...new Set([settings.imageModel, 'gpt-image-1', 'dall-e-3', 'dall-e-2'].filter(Boolean))];
+    let lastErr;
+    for (const model of models) {
+      try {
+        const data = await post('OpenAI', 'https://api.openai.com/v1/images/generations', { Authorization: 'Bearer ' + settings.openaiKey }, imageBody(model, prompt));
+        if (model !== settings.imageModel) saveSettings({ imageModel: model });
+        const item = data.data[0];
+        const src = item.b64_json ? 'data:image/png;base64,' + item.b64_json : item.url;
+        return shrink(src, 320);
+      } catch (e) {
+        lastErr = e;
+        if (!/does not exist|model|verif|access|not found|invalid_value/i.test(e.message)) throw e;
+      }
+    }
+    throw lastErr;
   }
   function shrink(src, size) {
     return new Promise((ok, fail) => {
@@ -181,5 +202,5 @@ or for verbs:
   // Voice sample file -> base64 (without the data: prefix)
   async function fileToBase64(file) { return (await fileToDataUrl(file)).replace(/^data:[^,]+,/, ''); }
 
-  MQ.ai = { settings, saveSettings, hasKey: () => !!settings.key, recognizerReady, PROVIDER_NAMES, recognize, drawPicture, tts, voices, fileToBase64, DEFAULT_VOICE };
+  MQ.ai = { settings, saveSettings, hasKey: () => !!settings.key, recognizerReady, canMakeCards: () => recognizerReady() || MQ.store.mode === 'cloud', PROVIDER_NAMES, recognize, drawPicture, tts, voices, fileToBase64, DEFAULT_VOICE };
 })();
