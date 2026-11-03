@@ -75,7 +75,7 @@
     const own = store.me.course && courses[store.me.course] ? [courses[store.me.course]] : [courses.as2, courses.as4];
     const myCourses = own.filter(c => c.id !== 'irr');
     const showVerbs = store.me.course !== 'as2';
-    const showVpr = !store.me.course || store.me.course === 'as2';
+    const showVpr = store.me.course === 'as2'; // ВПР is only for the Academy Stars 2 pupil
     app.append(
       h('h1', {}, `Hello, ${store.me.name}! ${MQ.theme(store.me.id) === 'magic' ? '🪄' : '👋'}`),
       h('div', { class: 'row theme-row' },

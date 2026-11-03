@@ -173,7 +173,7 @@
     const set = existing || { title: '', kind: 'words', items: [] };
     let items = set.items.map(x => Object.assign({}, x));
     const title = input({ value: set.title, placeholder: 'Название, например: Food · Unit 3' });
-    const kind = h('select', { class: 'field' }, h('option', { value: 'words' }, '📝 Слова'), h('option', { value: 'verbs' }, '🔁 Неправильные глаголы'), h('option', { value: 'jeopardy' }, '🏆 Своя игра (Jeopardy)'), h('option', { value: 'vpr' }, '📝 Тест по юниту (формат ВПР)'));
+    const kind = h('select', { class: 'field' }, h('option', { value: 'words' }, '📝 Слова'), h('option', { value: 'verbs' }, '🔁 Неправильные глаголы'), h('option', { value: 'jeopardy' }, '🏆 Своя игра (Jeopardy)'), h('option', { value: 'vpr' }, '📝 Тест по юниту AS2 (формат ВПР)'));
     kind.value = set.kind;
     // default unit: the one the assigned student is studying now
     const firstAssigned = students.find(st => assigns.some(a => a.set_id === set.id && a.student_id === st.id));
@@ -300,7 +300,13 @@
       picMsg.textContent = '✅ Картинки готовы. Не забудьте сохранить набор.';
     }
     let prevKind = kind.value;
-    kind.onchange = () => { if (items.length && !confirm('Сменить тип? Таблица будет очищена.')) { kind.value = prevKind; return; } prevKind = kind.value; items = []; renderTable(); };
+    const limitUnits = () => {
+      const vpr = kind.value === 'vpr';
+      [...unitSel.options].forEach(o => { o.hidden = vpr && o.value && !o.value.startsWith('as2/'); });
+      if (vpr && unitSel.value && !unitSel.value.startsWith('as2/')) unitSel.value = (MQ.courses.as2.units[0] ? 'as2/' + MQ.courses.as2.units[0].id : '');
+    };
+    kind.onchange = () => { if (items.length && !confirm('Сменить тип? Таблица будет очищена.')) { kind.value = prevKind; return; } prevKind = kind.value; items = []; limitUnits(); renderTable(); };
+    limitUnits();
     renderTable();
 
     // --- assignments ---
