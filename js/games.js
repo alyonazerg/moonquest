@@ -244,17 +244,17 @@
   games.quiz = {
     title: 'Choose the right word', icon: '✏️', desc: 'Grammar practice. Choose the answer.',
     available: u => (u.grammar || []).some(g => g.items.length),
-    items: u => shuffle(u.grammar.flatMap(g => g.items.map(it => Object.assign({ rule: g.rule, topic: g.title }, it)))),
+    items: u => shuffle(MQ.grammarItems(u)).slice(0, 12),
     run(ctx, items) {
       runRounds(ctx, items, (it, body, answer) => {
         const parts = it.q.split('___');
-        const sentence = h('div', { class: 'prompt' }, parts[0], h('b', { style: 'color:var(--accent)' }, ' ___ '), parts.slice(1).join('___'));
+        const sentence = h('div', { class: 'prompt' }, parts[0], h('b', { style: 'color:var(--accent)' }, '___'), parts.slice(1).join('___'));
         body.append(
           h('div', { class: 'hint' }, '📘 ' + it.topic),
           it.pic ? h('div', { class: 'emoji' }, it.pic) : null,
           sentence,
           optionButtons(shuffle(it.options).map(o => ({ value: o, label: o })), { value: it.a }, (ok, msg) => {
-            sentence.querySelector('b').textContent = ' ' + it.a + ' ';
+            sentence.querySelector('b').textContent = it.a;
             speak(it.q.replace('___', it.a));
             answer(ok, msg);
           }, '💡 ' + (it.hint || it.rule)),
@@ -301,6 +301,7 @@
     },
   };
 
+  MQ.grammarItems = (u, k) => (k == null ? u.grammar : [u.grammar[k]]).flatMap(g => g.items.map(it => Object.assign({ rule: g.rule, topic: g.title, en: it.q }, it)));
   MQ.games = games;
   MQ.gameKit = { runRounds, optionButtons, sayBtn, bar, praise };
 })();

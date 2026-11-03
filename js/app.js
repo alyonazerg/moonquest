@@ -63,7 +63,9 @@
       u.demo ? h('p', { class: 'hint' }, 'Демо-содержание: будет заменено материалами учебника.') : null,
       (u.grammar || []).length ? h('div', { class: 'panel' },
         h('h2', {}, '📘 Grammar'),
-        u.grammar.map(g => h('p', {}, h('b', {}, g.title + ': '), g.rule))) : null,
+        u.grammar.map((g, k) => h('div', { class: 'row space', style: 'border-top:1px solid #ffffff22;padding:8px 0;flex-wrap:nowrap' },
+          h('div', { style: 'text-align:left' }, h('b', {}, g.title), h('div', { class: 'muted' }, g.rule)),
+          h('button', { class: 'chip', onclick: () => play(c, u, 'quiz', MQ.shuffle(MQ.grammarItems(u, k)), g.title) }, '▶ Practise')))) : null,
       (u.verbs || []).length ? h('details', { class: 'panel' },
         h('summary', {}, '📋 Verb table'),
         h('table', { style: 'width:100%;margin-top:10px;border-collapse:collapse' },
@@ -82,7 +84,7 @@
     );
   }
 
-  function play(c, u, gameId, itemsOverride) {
+  function play(c, u, gameId, itemsOverride, label) {
     const g = games[gameId];
     app.innerHTML = '';
     const root = h('div');
@@ -118,7 +120,7 @@
           winner ? h('p', { class: 'prompt' }, winner) : null,
           mistakes.length ? h('p', { class: 'muted' }, 'Practise these again: ' + mistakes.map(m => m.en || m.q || '').join(', ')) : null,
           h('div', { class: 'row' },
-            mistakes.length ? h('button', { class: 'primary', onclick: () => play(c, u, gameId, MQ.shuffle(mistakes)) }, `🔁 Practise mistakes (${mistakes.length})`) : null,
+            mistakes.length ? h('button', { class: 'primary', onclick: () => play(c, u, gameId, MQ.shuffle(mistakes), 'mistakes only') }, `🔁 Practise mistakes (${mistakes.length})`) : null,
             h('button', { onclick: () => play(c, u, gameId) }, '▶ Play again'),
             h('a', { class: 'btn', href: `${c.href}/${u.id}` }, '🪐 Back'))));
       },
@@ -126,7 +128,7 @@
     app.append(
       h('a', { href: `${c.href}/${u.id}`, class: 'muted' }, '← ' + u.title),
       h('h1', {}, `${g.icon} ${g.title}`),
-      h('p', { class: 'muted' }, g.desc, itemsOverride ? ' (mistakes only)' : ''),
+      h('p', { class: 'muted' }, g.desc, itemsOverride ? ` (${label || 'mistakes only'})` : ''),
       settings.zoom ? zoomNames() : null,
       root,
     );
