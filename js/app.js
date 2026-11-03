@@ -70,7 +70,7 @@
     if (fresh) Object.assign(store.me, { name: fresh.name, course: fresh.course, current_unit: fresh.current_unit });
     const mine = new Set(assigns.filter(a => a.student_id === store.me.id).map(a => a.set_id));
     const tasks = sets.filter(s => mine.has(s.id) || s.student_id === store.me.id);
-    const now = store.me.current_unit && MQ.findUnit(store.me.current_unit);
+    const now = MQ.nowUnits(store.me);
     // the irregular verbs galaxy is for everyone except the Academy Stars 2 course
     const own = store.me.course && courses[store.me.course] ? [courses[store.me.course]] : [courses.as2, courses.as4];
     const myCourses = own.filter(c => c.id !== 'irr');
@@ -82,11 +82,13 @@
         h('span', { class: 'muted' }, 'Theme:'),
         ['space', 'magic'].map(t => h('button', { class: 'chip' + (MQ.theme(store.me.id) === t ? ' on' : ''), onclick: () => { MQ.setTheme(store.me.id, t); route(); } },
           t === 'space' ? '🚀 Space' : '🪄 Magic school'))),
-      now ? h('div', { class: 'panel now' },
-        h('div', {}, h('div', { class: 'muted' }, '📍 Now we study'), h('div', { class: 'title' }, now.u.title), h('div', { class: 'muted' }, now.c.title)),
-        h('div', { class: 'row' },
-          h('a', { class: 'btn', href: `${now.c.href}/${now.u.id}` }, '🪐 Open'),
-          h('a', { class: 'btn primary', href: `#/add/${now.c.id}/${now.u.id}` }, '＋ Add my words'))) :
+      now.length ? h('div', { class: 'panel now' },
+        h('div', { class: 'muted' }, '📍 Now we study'),
+        now.map(o => h('div', { class: 'now-row' },
+          h('div', {}, h('div', { class: 'title' }, `${o.u.icon || '🪐'} ${o.u.title}`), h('div', { class: 'muted' }, o.c.title)),
+          h('div', { class: 'row' },
+            h('a', { class: 'btn chip', href: `${o.c.href}/${o.u.id}` }, 'Open'),
+            h('a', { class: 'btn chip', href: `#/add/${o.c.id}/${o.u.id}` }, '＋ Add my words'))))) :
         h('div', { class: 'row' }, h('a', { class: 'btn primary', href: '#/add' }, '＋ Add my words')),
       h('div', { class: 'row', style: 'margin-top:10px' }, h('button', { onclick: () => {
         // any of my units (textbook, folders) and any game in it
@@ -164,7 +166,7 @@
     if (!store.me) { location.replace('#/who'); return; }
     const opts = MQ.unitOptions().filter(o => !store.me.course || o.c.id === store.me.course || (o.c.id === 'irr' && store.me.course !== 'as2'));
     const unitSel = h('select', { class: 'field' }, opts.map(o => h('option', { value: o.key }, o.label)));
-    unitSel.value = cid && uid ? `${cid}/${uid}` : (store.me.current_unit || (opts[0] || {}).key || '');
+    unitSel.value = cid && uid ? `${cid}/${uid}` : ((MQ.nowUnits(store.me)[0] || opts[0] || {}).key || '');
     let items = [];
     const words = h('textarea', { class: 'field', rows: 5, placeholder: 'apple\nbanana\nride a bike' });
     const photo = h('input', { type: 'file', accept: 'image/*', class: 'field' });

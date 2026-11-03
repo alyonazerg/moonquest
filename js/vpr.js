@@ -37,34 +37,73 @@
     return { res, k1, k2, errs, points: k1 + k2, max: t.fields.length + 2 };
   }
 
-  // ---------- dialog player: two voices, recorded audio if there is one ----------
-  let stopFlag = false;
+  // ---------- dialogue player ----------
+  // Every speaker gets their own voice (male / female, adult / child). Recorded Mistral audio is used
+  // when there is one (boys and men: the second voice, saved as "♂ text"). One playback at a time, with pause.
+  const FEMALE_V = /samantha|karen|moira|tessa|serena|fiona|victoria|kate|susan|martha|allison|ava|zira|hazel|libby|sonia|catherine|emily|joanna|amy|nicky|shelley|sandy|flo|female|woman/i;
+  const MALE_V = /daniel|alex|fred|\btom\b|oliver|arthur|rishi|aaron|david|mark|george|ryan|gordon|\blee\b|eddy|reed|rocko|ralph|bruce|albert|male|\bman\b/i;
+  const player = { playing: false, paused: false, stop: false, audio: null, onchange: null, session: 0 };
+  const changed = () => player.onchange && player.onchange();
+  function voicesFor(people) {
+    const all = ('speechSynthesis' in window ? speechSynthesis.getVoices() : []).filter(v => /^en/i.test(v.lang));
+    const used = new Set();
+    const map = {};
+    people.forEach(name => {
+      const male = MQ.speaker(name).male;
+      const fits = all.filter(v => (male ? MALE_V : FEMALE_V).test(v.name) && !(male ? FEMALE_V : MALE_V).test(v.name));
+      const v = fits.find(x => !used.has(x)) || all.find(x => !used.has(x)) || all[0] || null;
+      if (v) used.add(v);
+      map[name] = v;
+    });
+    return map;
+  }
+  const waitIfPaused = () => new Promise(r => { const t = setInterval(() => { if (!player.paused || player.stop) { clearInterval(t); r(); } }, 120); });
   async function playDialog(lines) {
-    stopFlag = false;
+    if (player.playing) return; // a second click does nothing
     MQ.stopSpeech();
+    Object.assign(player, { playing: true, paused: false, stop: false });
+    const my = ++player.session; // "Stop" or leaving the page ends this playback for good
+    const alive = () => my === player.session && !player.stop && document.querySelector('.vpr');
+    changed();
     const people = [...new Set(lines.map(l => l[0]))];
-    const voices = ('speechSynthesis' in window ? speechSynthesis.getVoices() : []).filter(v => /^en/.test(v.lang));
-    const pick = (k) => voices.length ? voices[(k * 3) % voices.length] : null;
+    const voices = voicesFor(people);
     for (const [who, text] of lines) {
-      if (stopFlag) return;
-      const k = people.indexOf(who);
-      const url = MQ.store && MQ.store.audioUrl(text);
+      if (!alive()) break;
+      if (player.paused) await waitIfPaused();
+      if (!alive()) break;
+      const sp = MQ.speaker(who);
+      const url = MQ.store && (sp.male ? MQ.store.audioUrl('♂ ' + text) : MQ.store.audioUrl(text));
       await new Promise((ok) => {
-        if (url) { const a = new Audio(url); a.onended = ok; a.onerror = ok; a.play().catch(ok); current = a; return; }
+        if (url) { const a = new Audio(url); player.audio = a; a.onended = ok; a.onerror = ok; a.play().catch(ok); return; }
         if (!('speechSynthesis' in window)) return ok();
         const u = new SpeechSynthesisUtterance(text);
         u.lang = 'en-GB'; u.rate = 0.85;
-        const v = pick(k); if (v) u.voice = v;
-        // a child's voice is a bit higher
-        u.pitch = /^(mum|dad|teacher|grandma|grandpa|mrs|mr|miss)/i.test(who) ? 1 : 1.35;
+        if (voices[who]) u.voice = voices[who];
+        // different pitch for every kind of speaker, so voices differ even with one system voice
+        u.pitch = sp.male ? (sp.adult ? 0.75 : 1.1) : (sp.adult ? 1.0 : 1.35);
         u.onend = ok; u.onerror = ok;
         speechSynthesis.speak(u);
       });
+      player.audio = null;
       await new Promise(r => setTimeout(r, 350));
     }
+    if (my === player.session) { Object.assign(player, { playing: false, paused: false }); changed(); }
   }
-  let current = null;
-  function stopDialog() { stopFlag = true; if (current) current.pause(); MQ.stopSpeech(); }
+  function pauseDialog() {
+    if (!player.playing) return;
+    player.paused = !player.paused;
+    if (player.audio) player.paused ? player.audio.pause() : player.audio.play();
+    else if ('speechSynthesis' in window) player.paused ? speechSynthesis.pause() : speechSynthesis.resume();
+    changed();
+  }
+  function stopDialog() {
+    player.session++; player.stop = true; player.paused = false;
+    if (player.audio) player.audio.pause();
+    if ('speechSynthesis' in window) { speechSynthesis.resume(); speechSynthesis.cancel(); }
+    MQ.stopSpeech();
+    player.playing = false;
+    changed();
+  }
 
   games.vpr = {
     title: 'Test · ВПР format', icon: '📝', desc: 'Тест в формате ВПР-2027: 4 задания, 25 баллов. Весь тест с таймером или одно задание.',
@@ -133,10 +172,18 @@
           body.innerHTML = '';
           const panel = h('div', { class: 'panel vpr-task' }, h('h2', {}, title(t)), h('p', { class: 'vpr-instr' }, t.instruction));
           if (t.type === 'listen') {
-            const left = strict ? 2 - plays[cur] : Infinity;
-            panel.append(h('div', { class: 'row' },
-              h('button', { class: 'primary', disabled: left <= 0 || checked, onclick: () => { plays[cur]++; render(); playDialog(t.dialog); } }, `▶ Слушать${strict ? ` (осталось ${Math.max(0, left)})` : ''}`),
-              h('button', { class: 'ghost', onclick: stopDialog }, '⏹ Стоп')),
+            let left = strict ? 2 - plays[cur] : Infinity;
+            const controls = h('div', { class: 'row' });
+            const drawControls = () => {
+              controls.replaceChildren(
+                h('button', { class: 'primary', disabled: left <= 0 || checked || player.playing, onclick: () => { if (player.playing) return; plays[cur]++; left--; playDialog(t.dialog); } },
+                  player.playing ? '🔊 Звучит…' : `▶ Слушать${strict ? ` (осталось ${Math.max(0, left)})` : ''}`),
+                h('button', { disabled: !player.playing, onclick: pauseDialog }, player.paused ? '▶ Продолжить' : '⏸ Пауза'),
+                h('button', { class: 'ghost', disabled: !player.playing, onclick: stopDialog }, '⏹ Стоп'));
+            };
+            player.onchange = () => { if (controls.isConnected) drawControls(); };
+            drawControls();
+            panel.append(controls,
               checked ? h('details', { class: 'vpr-script' }, h('summary', {}, 'Текст для аудирования'), t.dialog.map(([w, s]) => h('p', {}, h('b', {}, w + ': '), s))) : null,
               questionList(cur, t), answerRow(cur));
           }

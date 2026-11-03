@@ -8,7 +8,7 @@
   const DEFAULT_VOICE = 'gb_jane_neutral'; // British English preset
   const defaults = {
     provider: 'mistral',
-    key: '', chatModel: 'mistral-small-latest', ttsModel: 'voxtral-mini-tts-latest', voice: DEFAULT_VOICE, refAudio: '',
+    key: '', chatModel: 'mistral-small-latest', ttsModel: 'voxtral-mini-tts-latest', voice: DEFAULT_VOICE, refAudio: '', voice2: '',
     anthropicKey: '', claudeModel: 'claude-sonnet-5-5',
     openaiKey: '', openaiModel: 'gpt-4.1-mini', imageModel: 'gpt-image-1',
   };
@@ -231,10 +231,12 @@ Distribute the right answers (1/2/3) evenly. Return ONLY JSON:
     if (s === 'fLaC') return 'audio/flac';
     return 'audio/mpeg';
   }
-  async function tts(text) {
+  // voice: a preset voice for this text (e.g. the second, male voice in dialogues)
+  async function tts(text, voice) {
     const body = { model: settings.ttsModel, input: text, response_format: 'mp3' };
-    // a voice sample (cloning) wins over a preset voice
-    if (settings.refAudio) body.ref_audio = settings.refAudio;
+    // a voice sample (cloning) wins over the main preset voice
+    if (voice) body.voice = voice;
+    else if (settings.refAudio) body.ref_audio = settings.refAudio;
     else body.voice = settings.voice || DEFAULT_VOICE;
     const res = await call('/audio/speech', body);
     const type = res.headers.get('content-type') || '';

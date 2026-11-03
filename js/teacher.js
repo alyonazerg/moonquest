@@ -25,7 +25,8 @@
     const t = new Set();
     (unit.vocab || []).forEach(v => { t.add(v.en); });
     (unit.sentences || []).forEach(s => t.add(s.en));
-    ((unit.vpr && unit.vpr.tasks) || []).forEach(x => (x.dialog || []).forEach(([, line]) => t.add(line)));
+    // dialogue lines: boys / men get the second voice, saved under "♂ text"
+    ((unit.vpr && unit.vpr.tasks) || []).forEach(x => (x.dialog || []).forEach(([who, line]) => t.add(MQ.speaker(who).male && MQ.ai.settings.voice2 ? '♂ ' + line : line)));
     (unit.grammar || []).forEach(g => g.items.forEach(it => { if (it.q.includes(' ')) t.add(it.q.replace('___', it.a)); }));
     (unit.verbs || []).forEach(v => { t.add(MQ.verbSay(v)); t.add(v.base); t.add(MQ.formSay(v, 'v2')); t.add(MQ.formSay(v, 'v3')); });
     return [...t].filter(Boolean);
@@ -36,11 +37,33 @@
     let done = 0, failed = 0, lastErr = '';
     for (const text of texts) {
       statusEl.textContent = `🔊 Озвучиваю ${done + 1} / ${texts.length}: «${text}»`;
-      try { await store.saveAudio(text, await MQ.ai.tts(text)); }
+      const male = text.startsWith('♂ ');
+      try { await store.saveAudio(text, await MQ.ai.tts(male ? text.slice(2) : text, male ? MQ.ai.settings.voice2 : undefined)); }
       catch (e) { failed++; lastErr = e.message; if (failed >= 3 && done === 0) break; }
       done++;
     }
     statusEl.textContent = failed ? `⚠️ Готово с ошибками: ${failed} из ${done}. ${lastErr}` : `✅ Озвучено: ${done}.`;
+  }
+
+  // several units with checkboxes, grouped by course (folders collapsed)
+  function unitChecklist(value) {
+    const on = new Set(String(value || '').split(',').map(x => x.trim()).filter(Boolean));
+    const boxes = [];
+    const box = h('div', { class: 'unit-checks' }, Object.values(courses).filter(c => c.units.length).map(c => {
+      const rows = c.units.map(u => {
+        const key = `${c.id}/${u.id}`;
+        const cb = h('input', { type: 'checkbox' });
+        cb.checked = on.has(key);
+        boxes.push([key, cb]);
+        return h('label', { class: 'check' }, cb, ` ${u.icon || '🪐'} ${u.title}`);
+      });
+      const count = c.units.filter(u => on.has(`${c.id}/${u.id}`)).length;
+      return c.folder
+        ? h('details', { open: count > 0 }, h('summary', {}, `${c.icon} ${c.title}${count ? ` (${count})` : ''}`), rows)
+        : h('div', {}, h('div', { class: 'muted' }, `${c.icon} ${c.title}`), rows);
+    }));
+    box.getValue = () => boxes.filter(([, cb]) => cb.checked).map(([k]) => k).join(',');
+    return box;
   }
 
   function unitSelect(value, emptyLabel) {
@@ -115,16 +138,16 @@
     } }, '🔗 Скопировать личную ссылку');
     const course = h('select', { class: 'field' }, Object.entries(COURSE_NAMES).map(([v, l]) => h('option', { value: v }, l)));
     course.value = s.course || '';
-    const nowUnit = unitSelect(s.current_unit || '', 'не выбран');
+    const nowUnit = unitChecklist(s.current_unit || '');
     const rows = progress.slice().sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)));
     app.append(
       h('a', { href: '#/teacher', class: 'muted' }, '← Все ученицы'),
       h('div', { class: 'panel' },
         h('h2', {}, '👧 ' + s.name),
         h('div', { class: 'row' }, nameF, course, h('span', {}, '🔑'), pinF,
-          h('button', { class: 'primary', onclick: async () => { await store.saveStudent({ id, name: nameF.value.trim() || s.name, course: course.value, pin: pinF.value.trim() || s.pin, current_unit: nowUnit.value }); toast('Сохранено'); MQ.route(); } }, '💾 Сохранить'),
+          h('button', { class: 'primary', onclick: async () => { await store.saveStudent({ id, name: nameF.value.trim() || s.name, course: course.value, pin: pinF.value.trim() || s.pin, current_unit: nowUnit.getValue() }); toast('Сохранено'); MQ.route(); } }, '💾 Сохранить'),
           h('button', { class: 'ghost', onclick: async () => { if (confirm(`Удалить ${s.name} и весь её прогресс?`)) { await store.deleteStudent(id); location.hash = '#/teacher'; } } }, '🗑 Удалить')),
-        h('label', { class: 'lbl' }, '📍 Сейчас проходим (сюда прикрепляются новые карточки ученицы)'), nowUnit,
+        h('label', { class: 'lbl' }, '📍 Сейчас проходим — можно отметить несколько (сюда прикрепляются новые карточки ученицы)'), nowUnit,
         h('p', { class: 'hint' }, `Чтобы войти, ${s.name} выбирает своё имя и вводит код ${s.pin || ''}. Или отправьте ей личную ссылку — она откроет сайт сразу под её именем.`),
         h('div', { class: 'row' }, linkBtn)),
       h('div', { class: 'panel' },
@@ -177,7 +200,7 @@
     kind.value = set.kind;
     // default unit: the one the assigned student is studying now
     const firstAssigned = students.find(st => assigns.some(a => a.set_id === set.id && a.student_id === st.id));
-    const unitSel = unitSelect(set.unit_key || (existing ? '' : (firstAssigned || students.find(st => st.current_unit) || {}).current_unit || ''), 'не прикреплять');
+    const unitSel = unitSelect(set.unit_key || (existing ? '' : ((MQ.nowUnits(firstAssigned || students.find(st => st.current_unit)) || [])[0] || {}).key || ''), 'не прикреплять');
 
     // --- AI recognition ---
     const aiText = h('textarea', { class: 'field', rows: 4, placeholder: 'Вставьте текст, список слов или страницу учебника…' });
@@ -363,13 +386,16 @@
     const chat = input({ value: s.chatModel });
     const ttsM = input({ value: s.ttsModel });
     const voice = input({ value: s.voice, placeholder: MQ.ai.DEFAULT_VOICE });
+    const voice2 = input({ value: s.voice2, placeholder: 'id мужского голоса (для диалогов)' });
     const voicesBox = h('div', { class: 'hint' });
     const listVoices = h('button', { class: 'chip', onclick: async () => {
       MQ.ai.saveSettings({ key: key.value.trim() });
       voicesBox.textContent = 'Загружаю…';
       try {
         const vs = await MQ.ai.voices();
-        voicesBox.replaceChildren(...(vs.length ? vs.map(v => h('button', { class: 'chip', style: 'margin:3px', onclick: () => { voice.value = v.id; } }, `${v.name}${v.lang ? ' · ' + v.lang : ''}`)) : [document.createTextNode('Список пуст')]));
+        voicesBox.replaceChildren(...(vs.length ? vs.map(v => h('span', { class: 'voice-chip' }, `${v.name}${v.lang ? ' · ' + v.lang : ''} `,
+          h('button', { class: 'chip', title: 'Основной голос', onclick: () => { voice.value = v.id; } }, '→ 1'),
+          h('button', { class: 'chip', title: 'Второй голос (мужской, для диалогов)', onclick: () => { voice2.value = v.id; } }, '→ 2'))) : [document.createTextNode('Список пуст')]));
       } catch (e) { voicesBox.textContent = '⚠️ ' + e.message; }
     } }, '📋 Показать голоса');
     const refFile = h('input', { type: 'file', accept: 'audio/*', class: 'field' });
@@ -417,11 +443,12 @@
         h('label', { class: 'lbl' }, 'Модель Mistral для распознавания карточек'), chat,
         h('label', { class: 'lbl' }, 'Модель озвучки'), ttsM,
         h('label', { class: 'lbl' }, 'Голос (готовый)'), h('div', { class: 'row', style: 'justify-content:flex-start' }, voice, listVoices), voicesBox,
-        h('label', { class: 'lbl' }, 'Или свой образец голоса'), refFile, refInfo, refClear,
+        h('label', { class: 'lbl' }, 'Второй голос — мужской, для диалогов (реплики мальчиков и мужчин)'), voice2,
+        h('label', { class: 'lbl' }, 'Или свой образец голоса (вместо основного)'), refFile, refInfo, refClear,
         h('div', { class: 'row', style: 'margin-top:12px' },
-          h('button', { class: 'primary', onclick: () => { MQ.ai.saveSettings({ key: key.value.trim(), chatModel: chat.value.trim(), ttsModel: ttsM.value.trim(), voice: voice.value.trim() }); msg.textContent = '💾 Сохранено'; } }, '💾 Сохранить'),
+          h('button', { class: 'primary', onclick: () => { MQ.ai.saveSettings({ key: key.value.trim(), chatModel: chat.value.trim(), ttsModel: ttsM.value.trim(), voice: voice.value.trim(), voice2: voice2.value.trim() }); msg.textContent = '💾 Сохранено'; } }, '💾 Сохранить'),
           h('button', { onclick: async () => {
-            MQ.ai.saveSettings({ key: key.value.trim(), chatModel: chat.value.trim(), ttsModel: ttsM.value.trim(), voice: voice.value.trim() });
+            MQ.ai.saveSettings({ key: key.value.trim(), chatModel: chat.value.trim(), ttsModel: ttsM.value.trim(), voice: voice.value.trim(), voice2: voice2.value.trim() });
             msg.textContent = '🔊 Проверяю…';
             try { const b = await MQ.ai.tts("Hello! Let's learn English."); await new Audio(URL.createObjectURL(b)).play(); msg.textContent = '✅ Голос работает'; }
             catch (e) { msg.textContent = '⚠️ ' + e.message; }

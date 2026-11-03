@@ -72,16 +72,19 @@ window.MQ = (function () {
 
   let current = null;
   const memAudio = {};
+  let speakSeq = 0;
   async function speak(text) {
     if (!text) return;
     text = sayWord(text);
     stopSpeech();
+    const my = ++speakSeq; // a newer click wins, so two clicks never play two sounds
     try {
       let url = MQ.store && MQ.store.audioUrl(text);
       if (!url && MQ.ai && MQ.ai.hasKey()) {
         if (!memAudio[text]) memAudio[text] = URL.createObjectURL(await MQ.ai.tts(text));
         url = memAudio[text];
       }
+      if (my !== speakSeq) return;
       if (url) { current = new Audio(url); await current.play(); return; }
     } catch (e) { console.warn('audio fallback', e); }
     tts(text);
@@ -93,7 +96,13 @@ window.MQ = (function () {
     if (voice) u.voice = voice;
     speechSynthesis.speak(u);
   }
+  // Who is speaking in a dialogue: male / female, adult / child (from the name or role)
+  const MALE = /^(dad|daddy|father|grandpa|granddad|grandfather|uncle|mr|sir|boy|man|dan|ben|max|tim|tom|jack|sam|peter|bob|oliver|harry|leo|nick|alex|mike|paul|john|david|james|ivan|kirill|misha)\b/i;
+  const ADULT = /^(mum|mom|mother|dad|daddy|father|grandma|granny|grandmother|grandpa|granddad|grandfather|aunt|uncle|teacher|mr|mrs|ms|miss|sir|doctor|man|woman|shop)/i;
+  const speaker = (name) => ({ male: MALE.test(String(name).trim()), adult: ADULT.test(String(name).trim()) });
+
   function stopSpeech() {
+    speakSeq++;
     if (current) { current.pause(); current = null; }
     if ('speechSynthesis' in window) speechSynthesis.cancel();
   }
@@ -109,6 +118,8 @@ window.MQ = (function () {
     return Object.values(courses).flatMap(c => c.units.map(u => ({ key: `${c.id}/${u.id}`, label: `${c.title} · ${u.title}`, c, u })));
   }
   function findUnit(key) { return unitOptions().find(o => o.key === key) || null; }
+  // units a student studies now (several are allowed), as [{ key, label, c, u }]
+  const nowUnits = (student) => String((student && student.current_unit) || '').split(',').map(k => findUnit(k.trim())).filter(Boolean);
 
   // ---------- sound effects (made in the browser, no files) ----------
   let actx = null;
@@ -190,5 +201,5 @@ window.MQ = (function () {
   };
   const themed = (k) => WORDS[isMagic() ? 'magic' : 'space'][k];
 
-  return { isMagic, gt, themed, theme, applyTheme, setTheme, sfx, formSay, verbSay, unitOptions, findUnit, pic, courses, addUnit, load, save, h, shuffle, sample, norm, starsFor, uid, toast, speak, stopSpeech };
+  return { speaker, isMagic, gt, themed, theme, applyTheme, setTheme, sfx, formSay, verbSay, nowUnits, unitOptions, findUnit, pic, courses, addUnit, load, save, h, shuffle, sample, norm, starsFor, uid, toast, speak, stopSpeech };
 })();
