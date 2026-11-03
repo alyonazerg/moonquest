@@ -60,15 +60,24 @@
 
     const g = canvas.getContext('2d');
     let W = 0, H = 0, dpr = 1;
+    // The whole game (score, task, road, buttons) must fit on one screen
+    const rnBox = () => ctx.root.querySelector('.rn');
     function resize() {
       const w = Math.min(wrapC.clientWidth || 600, 640);
-      W = w; H = Math.round(Math.min(560, Math.max(420, w * 1.05)));
+      const box = rnBox();
+      const controls = box ? box.querySelector('.rn-controls') : null;
+      const extra = (box ? box.querySelector('.rn-hud').offsetHeight + box.querySelector('.rn-top').offsetHeight : 120)
+        + (controls && controls.offsetParent ? controls.offsetHeight + 14 : 0);
+      const topbar = (document.querySelector('.topbar') || {}).offsetHeight || 70;
+      const fit = window.innerHeight - topbar - extra - 24;
+      W = w; H = Math.round(Math.max(260, Math.min(560, fit, w * 1.3)));
       dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = W * dpr; canvas.height = H * dpr;
       canvas.style.height = H + 'px';
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
     resize();
+    requestAnimationFrame(resize);
     window.addEventListener('resize', resize);
 
     // world
@@ -255,6 +264,13 @@
 
     // ---------- start / end ----------
     function start() {
+      // scroll so the game sits right under the top bar, then fit it to the screen
+      const box = rnBox();
+      if (box) {
+        const topbar = (document.querySelector('.topbar') || {}).offsetHeight || 70;
+        window.scrollTo({ top: box.getBoundingClientRect().top + window.scrollY - topbar - 6, behavior: 'smooth' });
+      }
+      resize();
       overlay.innerHTML = '';
       let n = 3;
       const tick = () => {

@@ -27,6 +27,13 @@ Return ONLY JSON:
 or for verbs:
 {"title": "...", "kind": "verbs", "items": [{"base": "go", "v2": "went", "v3": "gone", "ru": "идти"}]}`;
 
+const JEOPARDY_PROMPT = `Create a Jeopardy-style quiz board for Russian-speaking children (10-12 years old) learning English (level A1-A2).
+Use the teacher's material below (topic, word list, grammar or textbook page).
+- 4 or 5 categories, each with exactly 5 questions worth 100, 200, 300, 400, 500 (harder = more points).
+- Questions in simple English; you may ask to translate a Russian word, choose a grammar form, fill a gap (use ___), answer a riddle.
+- Answers short (one word or a short phrase).
+Return ONLY JSON: {"title": "short title", "items": [{"cat": "Category", "pts": 100, "q": "question", "a": "answer"}]}`;
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
@@ -35,8 +42,8 @@ function parse(raw: string) {
   return JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1));
 }
 
-async function ask(text: string, images: string[]): Promise<string> {
-  const prompt = PROMPT + (text ? "\n\nMaterial:\n" + text : "");
+async function ask(text: string, images: string[], mode = "cards"): Promise<string> {
+  const prompt = (mode === "jeopardy" ? JEOPARDY_PROMPT : PROMPT) + (text ? "\n\nMaterial:\n" + text : "");
   const anthropic = Deno.env.get("ANTHROPIC_API_KEY");
   const openai = Deno.env.get("OPENAI_API_KEY");
   const mistral = Deno.env.get("MISTRAL_API_KEY");
@@ -84,14 +91,15 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
   try {
-    const { text = "", images = [] } = await req.json();
+    const { text = "", images = [], mode = "cards" } = await req.json();
     // keep requests small: this function only makes vocabulary cards
     if (typeof text !== "string" || text.length > 6000) return json({ error: "Text is too long (max 6000 characters)." }, 400);
     if (!Array.isArray(images) || images.length > 3) return json({ error: "Up to 3 photos at a time." }, 400);
     if (images.some((i) => typeof i !== "string" || !i.startsWith("data:image/") || i.length > 7_000_000)) return json({ error: "Photo is too big." }, 400);
     if (!text.trim() && !images.length) return json({ error: "Write some words or add a photo." }, 400);
 
-    const out = parse(await ask(text, images));
+    const out = parse(await ask(text, images, mode === "jeopardy" ? "jeopardy" : "cards"));
+    if (mode === "jeopardy") { out.items = (out.items || []).slice(0, 30); return json(out); }
     out.kind = out.kind === "verbs" ? "verbs" : "words";
     out.items = (out.items || []).slice(0, 40);
     return json(out);

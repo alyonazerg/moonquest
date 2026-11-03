@@ -116,6 +116,26 @@ or for verbs:
     return json;
   }
 
+  // ---------- Jeopardy board ----------
+  const JEOPARDY_PROMPT = `Create a Jeopardy-style quiz board for Russian-speaking children (10-12 years old) learning English (level A1-A2).
+Use the teacher's material below (topic, word list, grammar or textbook page).
+- 4 or 5 categories, each with exactly 5 questions worth 100, 200, 300, 400, 500 (harder = more points).
+- Questions in simple English; you may ask to translate a Russian word, choose a grammar form, fill a gap (use ___), answer a riddle.
+- Answers short (one word or a short phrase).
+Return ONLY JSON: {"title": "short title", "items": [{"cat": "Category", "pts": 100, "q": "question", "a": "answer"}]}`;
+  async function generateJeopardy({ text, files }) {
+    const images = [];
+    for (const f of files || []) images.push(await fileToDataUrl(f));
+    let json;
+    if (recognizerReady()) {
+      json = parseJson(await (providers[settings.provider] || providers.mistral)(JEOPARDY_PROMPT + '\n\nMaterial:\n' + (text || '(see the photo)'), images));
+    } else {
+      json = await MQ.store.aiCards({ text, images, mode: 'jeopardy' });
+    }
+    json.items = (json.items || []).filter(x => x.cat && x.q && x.a).map(x => ({ cat: String(x.cat), pts: Number(x.pts) || 100, q: String(x.q), a: String(x.a) }));
+    return json;
+  }
+
   // ---------- pictures for cards (OpenAI) ----------
   // Returns a small square WebP blob (about 15-30 KB) ready to store.
   // Each image model takes slightly different options
@@ -202,5 +222,5 @@ or for verbs:
   // Voice sample file -> base64 (without the data: prefix)
   async function fileToBase64(file) { return (await fileToDataUrl(file)).replace(/^data:[^,]+,/, ''); }
 
-  MQ.ai = { settings, saveSettings, hasKey: () => !!settings.key, recognizerReady, canMakeCards: () => recognizerReady() || MQ.store.mode === 'cloud', PROVIDER_NAMES, recognize, drawPicture, tts, voices, fileToBase64, DEFAULT_VOICE };
+  MQ.ai = { generateJeopardy, settings, saveSettings, hasKey: () => !!settings.key, recognizerReady, canMakeCards: () => recognizerReady() || MQ.store.mode === 'cloud', PROVIDER_NAMES, recognize, drawPicture, tts, voices, fileToBase64, DEFAULT_VOICE };
 })();

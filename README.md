@@ -21,6 +21,12 @@ Again / Hard / Good / Easy, и каждая карточка возвращае�
 Грамматика: Choose the right word (по всем темам или по одной — ▶ Practise), Make a sentence.
 Неправильные глаголы: Choose the form, Write the forms, Spell the form, Verb pairs, 🚀 Verb Runner (аркада: ракета влетает в правильную форму).
 
+## Игры по любому материалу
+Каждая игра собирается автоматически из юнита учебника, набора учителя или слов ученицы:
+🧩 Crossword · 🛸 Space Hangman · 🧱 Word Blocks · 🏆 Jeopardy · 🚀 Verb/Word Runner.
+«Своя игра» (Jeopardy) строится из тем юнита сама, а ещё её можно создать в кабинете:
+тип набора «🏆 Своя игра» → вручную (тема | баллы | вопрос | ответ) или «✨ Сгенерировать игру с ИИ».
+
 ## 🔁 Irregular verbs galaxy
 Готовые группы неправильных глаголов по созвучию и паттерну: cut–cut–cut, buy–bought, sing–sang–sung,
 know–knew–known, sleep–slept, send–sent, make–made–made, write–wrote–written, speak–spoke–spoken,

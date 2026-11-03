@@ -44,15 +44,28 @@
     return { items, errors };
   }
 
-  const parse = (kind, text) => (kind === 'verbs' ? parseVerbs : parseWords)(text);
+  // "Тема | 100 | вопрос | ответ" (or tabs)
+  function parseJeopardy(text) {
+    const items = [], errors = [];
+    text.split('\n').forEach((line, n) => {
+      const t = line.trim();
+      if (!t || t.startsWith('#')) return;
+      const p = t.split(/\s*[|\t]\s*/);
+      if (p.length < 4) { errors.push(`Строка ${n + 1}: нужно «тема | баллы | вопрос | ответ»`); return; }
+      items.push({ cat: p[0], pts: Number(p[1]) || 100, q: p[2], a: p.slice(3).join(' ') });
+    });
+    return { items, errors };
+  }
+  const parse = (kind, text) => (kind === 'verbs' ? parseVerbs : kind === 'jeopardy' ? parseJeopardy : parseWords)(text);
   // Back to editable text (for the "edit as text" box)
   const toText = (set) => set.items.map(it => set.kind === 'verbs'
     ? `${it.base} - ${it.v2} - ${it.v3}${it.ru ? ' ' + it.ru : ''}`
     : `${it.en}${it.ru ? ' - ' + it.ru : ''}${it.pic ? ' ' + it.pic : ''}`).join('\n');
 
   function setToUnit(set) {
-    const u = { id: set.id, title: set.title, icon: set.kind === 'verbs' ? '🔁' : '📝', custom: true };
-    if (set.kind === 'verbs') { u.verbs = set.items; u.subtitle = `${set.items.length} irregular verbs`; }
+    const u = { id: set.id, title: set.title, icon: set.kind === 'verbs' ? '🔁' : set.kind === 'jeopardy' ? '🏆' : '📝', custom: true };
+    if (set.kind === 'jeopardy') { u.jeopardy = set.items; u.subtitle = `Jeopardy · ${set.items.length} questions`; }
+    else if (set.kind === 'verbs') { u.verbs = set.items; u.subtitle = `${set.items.length} irregular verbs`; }
     else { u.vocab = set.items; u.subtitle = `${set.items.length} words`; }
     return u;
   }

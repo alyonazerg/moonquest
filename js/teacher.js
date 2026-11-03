@@ -131,7 +131,7 @@
         sets.length ? sets.map(set => {
           const cb = h('input', { type: 'checkbox', onchange: async (e) => { await store.assign(id, set.id, e.target.checked); toast(e.target.checked ? 'Назначено' : 'Снято'); } });
           cb.checked = mine.has(set.id);
-          return h('label', { class: 'check' }, cb, ` ${set.kind === 'verbs' ? '🔁' : '📝'} ${set.title} `, h('span', { class: 'muted' }, `(${set.items.length})`));
+          return h('label', { class: 'check' }, cb, ` ${({ verbs: '🔁', jeopardy: '🏆' }[set.kind] || '📝')} ${set.title} `, h('span', { class: 'muted' }, `(${set.items.length})`));
         }) : h('p', { class: 'muted' }, 'Наборов пока нет. Создайте их во вкладке «Наборы карточек».')),
       h('div', { class: 'panel' },
         h('h2', {}, '📈 Прогресс'),
@@ -154,9 +154,9 @@
       sets.length ? h('div', { class: 'grid', style: 'margin-top:16px' }, sets.map(set => {
         const who = assigns.filter(a => a.set_id === set.id).map(a => names[a.student_id]).filter(Boolean);
         return h('div', { class: 'tile' },
-          h('div', { class: 'big' }, set.kind === 'verbs' ? '🔁' : '📝'),
+          h('div', { class: 'big' }, ({ verbs: '🔁', jeopardy: '🏆' }[set.kind] || '📝')),
           h('div', { class: 'title' }, set.title),
-          h('div', { class: 'muted' }, `${set.items.length} ${set.kind === 'verbs' ? 'глаголов' : 'слов'}`),
+          h('div', { class: 'muted' }, `${set.items.length} ${({ verbs: 'глаголов', jeopardy: 'вопросов' }[set.kind] || 'слов')}`),
           set.unit_key ? h('div', { class: 'muted' }, '📍 ' + ((MQ.findUnit(set.unit_key) || {}).label || set.unit_key)) : null,
           set.student_id ? h('div', { class: 'muted' }, '✍️ создала ' + (names[set.student_id] || 'ученица')) : h('div', { class: 'muted' }, who.length ? '👧 ' + who.join(', ') : 'не назначен'),
           h('div', { class: 'row', style: 'margin-top:8px' },
@@ -172,7 +172,7 @@
     const set = existing || { title: '', kind: 'words', items: [] };
     let items = set.items.map(x => Object.assign({}, x));
     const title = input({ value: set.title, placeholder: 'Название, например: Food · Unit 3' });
-    const kind = h('select', { class: 'field' }, h('option', { value: 'words' }, '📝 Слова'), h('option', { value: 'verbs' }, '🔁 Неправильные глаголы'));
+    const kind = h('select', { class: 'field' }, h('option', { value: 'words' }, '📝 Слова'), h('option', { value: 'verbs' }, '🔁 Неправильные глаголы'), h('option', { value: 'jeopardy' }, '🏆 Своя игра (Jeopardy)'));
     kind.value = set.kind;
     // default unit: the one the assigned student is studying now
     const firstAssigned = students.find(st => assigns.some(a => a.set_id === set.id && a.student_id === st.id));
@@ -183,11 +183,13 @@
     const files = h('input', { type: 'file', accept: 'image/*', multiple: true, class: 'field' });
     const aiMsg = h('div', { class: 'hint' });
     const aiBtn = h('button', { class: 'primary', onclick: async () => {
-      if (!MQ.ai.recognizerReady()) { aiMsg.textContent = `Сначала добавьте ключ ${MQ.ai.PROVIDER_NAMES[MQ.ai.settings.provider]} во вкладке «Настройки».`; return; }
+      if (!MQ.ai.canMakeCards()) { aiMsg.textContent = `Сначала добавьте ключ ${MQ.ai.PROVIDER_NAMES[MQ.ai.settings.provider]} во вкладке «Настройки».`; return; }
       if (!aiText.value.trim() && !files.files.length) { aiMsg.textContent = 'Добавьте текст или фото.'; return; }
-      aiBtn.disabled = true; aiMsg.textContent = '✨ Распознаю… (10–30 секунд)';
+      aiBtn.disabled = true; aiMsg.textContent = kind.value === 'jeopardy' ? '✨ Придумываю вопросы… (20–40 секунд)' : '✨ Распознаю… (10–30 секунд)';
       try {
-        const r = await MQ.ai.recognize({ text: aiText.value.trim(), files: [...files.files] });
+        const r = kind.value === 'jeopardy'
+          ? Object.assign({ kind: 'jeopardy' }, await MQ.ai.generateJeopardy({ text: aiText.value.trim(), files: [...files.files] }))
+          : await MQ.ai.recognize({ text: aiText.value.trim(), files: [...files.files] });
         if (items.length && r.kind !== kind.value) items = [];
         kind.value = r.kind;
         items = items.concat(r.items);
@@ -206,11 +208,15 @@
       if (r.errors.length) toast(r.errors.join('; '));
       renderTable();
     } }, '➕ Добавить в таблицу');
-    const pasteHelp = () => { paste.placeholder = kind.value === 'verbs' ? 'go - went - gone идти\nsee saw seen' : 'apple - яблоко 🍎\nbread - хлеб'; };
+    const pasteHelp = () => {
+      paste.placeholder = { verbs: 'go - went - gone идти\nsee saw seen', jeopardy: 'Animals | 100 | Как по-английски «кошка»? | cat\nPast Simple | 200 | go → ? | went' }[kind.value] || 'apple - яблоко 🍎\nbread - хлеб';
+      aiText.placeholder = kind.value === 'jeopardy' ? 'Тема или материал: например «Past Simple + слова Unit 2: castle, princess, goose…». Можно фото страницы.' : 'Вставьте текст, список слов или страницу учебника…';
+      aiBtn.textContent = kind.value === 'jeopardy' ? '✨ Сгенерировать игру с ИИ' : '✨ Распознать с ИИ';
+    };
 
     // --- editable table ---
     const tableBox = h('div', { class: 'table-wrap' });
-    const cols = () => kind.value === 'verbs'
+    const cols = () => kind.value === 'jeopardy' ? [['cat', 'Тема'], ['pts', 'Баллы'], ['q', 'Вопрос'], ['a', 'Ответ']] : kind.value === 'verbs'
       ? [['base', 'V1'], ['v2', 'V2'], ['v3', 'V3'], ['ru', 'Перевод']]
       : [['en', 'English'], ['ru', 'Перевод'], ['pic', 'Картинка']];
     function renderTable() {
@@ -250,7 +256,8 @@
       }
       picMsg.textContent = '✅ Картинки готовы. Не забудьте сохранить набор.';
     }
-    kind.onchange = () => { if (items.length && !confirm('Сменить тип? Таблица будет очищена.')) { kind.value = kind.value === 'verbs' ? 'words' : 'verbs'; return; } items = []; renderTable(); };
+    let prevKind = kind.value;
+    kind.onchange = () => { if (items.length && !confirm('Сменить тип? Таблица будет очищена.')) { kind.value = prevKind; return; } prevKind = kind.value; items = []; renderTable(); };
     renderTable();
 
     // --- assignments ---
@@ -272,7 +279,7 @@
         checks.length ? checks.map(({ s, cb }) => h('label', { class: 'check' }, cb, ' ' + s.name)) : h('p', { class: 'muted' }, 'Сначала добавьте учениц.')),
       h('div', { class: 'row' },
         h('button', { class: 'primary', onclick: async () => {
-          const clean = items.filter(it => kind.value === 'verbs' ? it.base && it.v2 && it.v3 : it.en)
+          const clean = items.filter(it => kind.value === 'verbs' ? it.base && it.v2 && it.v3 : kind.value === 'jeopardy' ? it.q && it.a : it.en)
             .map(it => Object.fromEntries(Object.entries(it).filter(([, v]) => v).map(([k, v]) => [k, String(v).trim()])));
           if (!clean.length) { toast('Добавьте хотя бы одну карточку'); return; }
           try {

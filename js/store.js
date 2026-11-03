@@ -133,9 +133,9 @@
   store.newPin = () => String(Math.floor(1000 + Math.random() * 9000));
 
   // AI cards for students (no key in the browser): Supabase Edge Function "cards-ai" holds the key.
-  store.aiCards = async function ({ text, images }) {
+  store.aiCards = async function ({ text, images, mode }) {
     if (store.mode !== 'cloud') throw new Error('AI for students works after the database is connected.');
-    const { data, error } = await db.functions.invoke('cards-ai', { body: { text, images } });
+    const { data, error } = await db.functions.invoke('cards-ai', { body: { text, images, mode } });
     if (error) {
       let msg = error.message;
       try { msg = (await error.context.json()).error || msg; } catch (e) { /* keep message */ }
