@@ -232,13 +232,30 @@ Distribute the right answers (1/2/3) evenly. Return ONLY JSON:
     return 'audio/mpeg';
   }
   // voice: a preset voice for this text (e.g. the second, male voice in dialogues)
+  // Mistral's speech API differs between model versions (field "voice" or "voice_id"; old models take only
+  // a voice sample). On such an error the next combination is tried, and the one that works is remembered.
+  const TTS_MODELS = ['voxtral-mini-tts-2603', 'voxtral-mini-tts-3', 'voxtral-mini-tts-latest'];
   async function tts(text, voice) {
-    const body = { model: settings.ttsModel, input: text, response_format: 'mp3' };
-    // a voice sample (cloning) wins over the main preset voice
-    if (voice) body.voice = voice;
-    else if (settings.refAudio) body.ref_audio = settings.refAudio;
-    else body.voice = settings.voice || DEFAULT_VOICE;
-    const res = await call('/audio/speech', body);
+    const useSample = !voice && settings.refAudio;
+    const preset = voice || settings.voice || DEFAULT_VOICE;
+    const models = [...new Set([settings.ttsModel, ...TTS_MODELS].filter(Boolean))];
+    const fields = [...new Set([settings.voiceField || 'voice_id', 'voice_id', 'voice'])];
+    const tries = useSample ? models.map(m => [m, 'ref_audio']) : models.flatMap(m => fields.map(f => [m, f]));
+    let res, lastErr;
+    for (const [model, field] of tries) {
+      const body = { model, input: text, response_format: 'mp3' };
+      body[field] = field === 'ref_audio' ? settings.refAudio : preset;
+      try {
+        res = await call('/audio/speech', body);
+        if (model !== settings.ttsModel || (field !== 'ref_audio' && field !== settings.voiceField)) saveSettings(field === 'ref_audio' ? { ttsModel: model } : { ttsModel: model, voiceField: field });
+        break;
+      } catch (e) {
+        lastErr = e;
+        // only "this model / field is not supported" errors are worth another try
+        if (!/Mistral 4(00|22)|Mistral 404/.test(e.message) || /api key|unauthori/i.test(e.message)) throw e;
+      }
+    }
+    if (!res) throw lastErr;
     const type = res.headers.get('content-type') || '';
     let bytes;
     if (type.includes('json')) {
