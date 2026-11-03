@@ -64,7 +64,8 @@
 
   function setToUnit(set) {
     const u = { id: set.id, title: set.title, icon: set.kind === 'verbs' ? '🔁' : set.kind === 'jeopardy' ? '🏆' : '📝', custom: true };
-    if (set.kind === 'jeopardy') { u.jeopardy = set.items; u.subtitle = `Jeopardy · ${set.items.length} questions`; }
+    if (set.kind === 'vpr') { u.icon = '📝'; u.vpr = { minutes: 45, title: set.title, tasks: set.items }; u.subtitle = 'Test · ВПР format · 25 points'; }
+    else if (set.kind === 'jeopardy') { u.jeopardy = set.items; u.subtitle = `Jeopardy · ${set.items.length} questions`; }
     else if (set.kind === 'verbs') { u.verbs = set.items; u.subtitle = `${set.items.length} irregular verbs`; }
     else { u.vocab = set.items; u.subtitle = `${set.items.length} words`; }
     return u;

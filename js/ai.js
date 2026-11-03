@@ -136,6 +136,44 @@ Return ONLY JSON: {"title": "short title", "items": [{"cat": "Category", "pts": 
     return json;
   }
 
+  // ---------- end-of-unit test in the ВПР-2027 format ----------
+  const VPR_PROMPT = `You write an end-of-unit English test for Russian 4th–6th grade pupils (A1–A2) in the exact format of the Russian ВПР-2027 (4 класс).
+Use ONLY the vocabulary and grammar of the teacher's unit material below (you may add very common simple words).
+The test has exactly 4 tasks, in this order:
+1) "listen": a short dialogue (8–12 lines, 2 people, max 1 minute) and 5 questions A–E, each with exactly 3 options; "a" is the number (1, 2 or 3) of the right option. Some questions may be sentence stems ending with "…".
+2) "read": a text of 120–170 words with a short "heading", and 5 questions A–E with 3 options each; question E is "Choose the true sentence."
+3) "grammar": a short connected story with a "heading" and 5 gaps written exactly as {A} {B} {C} {D} {E}; for each gap 3 forms of the same word/structure, "a" = number of the right one. Test the unit grammar.
+4) "form": a text (60–80 words) about a child with a "heading" (name and surname) and 8 form fields; each answer is ONE word, without articles; numbers (age, number of children) are written in the text as digits but answers must be words. Field labels like: Name, Age, Country, City, Number of children in the family, Pet, Favourite sport, Favourite subject, Favourite food, Favourite drink, Future job.
+Distribute the right answers (1/2/3) evenly. Return ONLY JSON:
+{"title": "Unit … test", "tasks": [
+ {"type":"listen","dialog":[["Mum","…"],["Dan","…"]],"questions":[{"q":"…","options":["…","…","…"],"a":1}]},
+ {"type":"read","heading":"…","text":"…","questions":[{"q":"…","options":["…","…","…"],"a":2}]},
+ {"type":"grammar","heading":"…","text":"… {A} … {B} … {C} … {D} … {E} …","gaps":[{"options":["…","…","…"],"a":3}]},
+ {"type":"form","heading":"…","text":"…","fields":[{"label":"Name","a":["…"]}]}
+]}`;
+  function unitMaterial(unitKey) {
+    const o = unitKey && MQ.findUnit(unitKey);
+    if (!o) return '';
+    const u = o.u;
+    return [
+      `Unit: ${o.label}`,
+      u.vocab ? 'Vocabulary: ' + u.vocab.map(v => v.en).join(', ') : '',
+      u.verbs ? 'Irregular verbs: ' + u.verbs.map(v => `${v.base}-${v.v2}-${v.v3}`).join(', ') : '',
+      u.grammar ? 'Grammar: ' + u.grammar.map(g => `${g.title} (${g.rule})`).join('; ') : '',
+      u.sentences ? 'Example sentences: ' + u.sentences.map(s => s.en).join(' ') : '',
+    ].filter(Boolean).join('\n');
+  }
+  async function generateVpr({ text, files, unitKey }) {
+    const images = [];
+    for (const f of files || []) images.push(await fileToDataUrl(f));
+    const material = [unitMaterial(unitKey), text].filter(Boolean).join('\n\n') || '(see the photo)';
+    let json;
+    if (recognizerReady()) json = parseJson(await (providers[settings.provider] || providers.mistral)(VPR_PROMPT + '\n\nUnit material:\n' + material, images));
+    else json = await MQ.store.aiCards({ text: material, images, mode: 'vpr' });
+    json.tasks = MQ.vprCheck.normalize(json.tasks || []);
+    return json;
+  }
+
   // ---------- pictures for cards (OpenAI) ----------
   // Returns a small square WebP blob (about 15-30 KB) ready to store.
   // Each image model takes slightly different options
@@ -222,5 +260,5 @@ Return ONLY JSON: {"title": "short title", "items": [{"cat": "Category", "pts": 
   // Voice sample file -> base64 (without the data: prefix)
   async function fileToBase64(file) { return (await fileToDataUrl(file)).replace(/^data:[^,]+,/, ''); }
 
-  MQ.ai = { generateJeopardy, settings, saveSettings, hasKey: () => !!settings.key, recognizerReady, canMakeCards: () => recognizerReady() || MQ.store.mode === 'cloud', PROVIDER_NAMES, recognize, drawPicture, tts, voices, fileToBase64, DEFAULT_VOICE };
+  MQ.ai = { generateVpr, generateJeopardy, settings, saveSettings, hasKey: () => !!settings.key, recognizerReady, canMakeCards: () => recognizerReady() || MQ.store.mode === 'cloud', PROVIDER_NAMES, recognize, drawPicture, tts, voices, fileToBase64, DEFAULT_VOICE };
 })();

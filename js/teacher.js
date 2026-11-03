@@ -132,7 +132,7 @@
         sets.length ? sets.map(set => {
           const cb = h('input', { type: 'checkbox', onchange: async (e) => { await store.assign(id, set.id, e.target.checked); toast(e.target.checked ? 'Назначено' : 'Снято'); } });
           cb.checked = mine.has(set.id);
-          return h('label', { class: 'check' }, cb, ` ${({ verbs: '🔁', jeopardy: '🏆' }[set.kind] || '📝')} ${set.title} `, h('span', { class: 'muted' }, `(${set.items.length})`));
+          return h('label', { class: 'check' }, cb, ` ${({ verbs: '🔁', jeopardy: '🏆', vpr: '📝' }[set.kind] || '📝')} ${set.title} `, h('span', { class: 'muted' }, `(${set.items.length})`));
         }) : h('p', { class: 'muted' }, 'Наборов пока нет. Создайте их во вкладке «Наборы карточек».')),
       h('div', { class: 'panel' },
         h('h2', {}, '📈 Прогресс'),
@@ -157,7 +157,7 @@
         return h('div', { class: 'tile' },
           h('div', { class: 'big' }, ({ verbs: '🔁', jeopardy: '🏆' }[set.kind] || '📝')),
           h('div', { class: 'title' }, set.title),
-          h('div', { class: 'muted' }, `${set.items.length} ${({ verbs: 'глаголов', jeopardy: 'вопросов' }[set.kind] || 'слов')}`),
+          h('div', { class: 'muted' }, `${set.items.length} ${({ verbs: 'глаголов', jeopardy: 'вопросов', vpr: 'задания' }[set.kind] || 'слов')}`),
           set.unit_key ? h('div', { class: 'muted' }, '📍 ' + ((MQ.findUnit(set.unit_key) || {}).label || set.unit_key)) : null,
           set.student_id ? h('div', { class: 'muted' }, '✍️ создала ' + (names[set.student_id] || 'ученица')) : h('div', { class: 'muted' }, who.length ? '👧 ' + who.join(', ') : 'не назначен'),
           h('div', { class: 'row', style: 'margin-top:8px' },
@@ -173,7 +173,7 @@
     const set = existing || { title: '', kind: 'words', items: [] };
     let items = set.items.map(x => Object.assign({}, x));
     const title = input({ value: set.title, placeholder: 'Название, например: Food · Unit 3' });
-    const kind = h('select', { class: 'field' }, h('option', { value: 'words' }, '📝 Слова'), h('option', { value: 'verbs' }, '🔁 Неправильные глаголы'), h('option', { value: 'jeopardy' }, '🏆 Своя игра (Jeopardy)'));
+    const kind = h('select', { class: 'field' }, h('option', { value: 'words' }, '📝 Слова'), h('option', { value: 'verbs' }, '🔁 Неправильные глаголы'), h('option', { value: 'jeopardy' }, '🏆 Своя игра (Jeopardy)'), h('option', { value: 'vpr' }, '📝 Тест по юниту (формат ВПР)'));
     kind.value = set.kind;
     // default unit: the one the assigned student is studying now
     const firstAssigned = students.find(st => assigns.some(a => a.set_id === set.id && a.student_id === st.id));
@@ -185,6 +185,20 @@
     const aiMsg = h('div', { class: 'hint' });
     const aiBtn = h('button', { class: 'primary', onclick: async () => {
       if (!MQ.ai.canMakeCards()) { aiMsg.textContent = `Сначала добавьте ключ ${MQ.ai.PROVIDER_NAMES[MQ.ai.settings.provider]} во вкладке «Настройки».`; return; }
+      if (kind.value === 'vpr') {
+        if (!unitSel.value && !aiText.value.trim() && !files.files.length) { aiMsg.textContent = 'Выберите юнит выше (📍) или добавьте материал.'; return; }
+        aiBtn.disabled = true; aiMsg.textContent = '✨ Составляю тест: 4 задания… (30–60 секунд)';
+        try {
+          const r = await MQ.ai.generateVpr({ text: aiText.value.trim(), files: [...files.files], unitKey: unitSel.value });
+          items = r.tasks;
+          if (!title.value.trim()) title.value = r.title || 'Unit test';
+          const problems = MQ.vprCheck.validate(items);
+          aiMsg.textContent = problems.length ? '⚠️ Тест получился с ошибками, проверьте ниже или сгенерируйте ещё раз.' : '✅ Тест готов. Проверьте его ниже.';
+          renderTable();
+        } catch (e) { aiMsg.textContent = '⚠️ ' + e.message; }
+        aiBtn.disabled = false;
+        return;
+      }
       if (!aiText.value.trim() && !files.files.length) { aiMsg.textContent = 'Добавьте текст или фото.'; return; }
       aiBtn.disabled = true; aiMsg.textContent = kind.value === 'jeopardy' ? '✨ Придумываю вопросы… (20–40 секунд)' : '✨ Распознаю… (10–30 секунд)';
       try {
@@ -212,7 +226,8 @@
     const pasteHelp = () => {
       paste.placeholder = { verbs: 'go - went - gone идти\nsee saw seen', jeopardy: 'Animals | 100 | Как по-английски «кошка»? | cat\nPast Simple | 200 | go → ? | went' }[kind.value] || 'apple - яблоко 🍎\nbread - хлеб';
       aiText.placeholder = kind.value === 'jeopardy' ? 'Тема или материал: например «Past Simple + слова Unit 2: castle, princess, goose…». Можно фото страницы.' : 'Вставьте текст, список слов или страницу учебника…';
-      aiBtn.textContent = kind.value === 'jeopardy' ? '✨ Сгенерировать игру с ИИ' : '✨ Распознать с ИИ';
+      aiBtn.textContent = kind.value === 'vpr' ? '✨ Сгенерировать тест по юниту' : kind.value === 'jeopardy' ? '✨ Сгенерировать игру с ИИ' : '✨ Распознать с ИИ';
+      if (kind.value === 'vpr') aiText.placeholder = 'Можно ничего не писать: ИИ возьмёт слова и грамматику выбранного юнита (📍). Или добавьте свой текст / фото страницы.';
     };
 
     // --- editable table ---
@@ -222,6 +237,7 @@
       : [['en', 'English'], ['ru', 'Перевод'], ['pic', 'Картинка']];
     function renderTable() {
       pasteHelp();
+      if (kind.value === 'vpr') return renderVpr();
       const c = cols();
       const words = kind.value === 'words';
       tableBox.replaceChildren(h('table', { class: 'table' },
@@ -236,6 +252,32 @@
         h('button', { class: 'chip', onclick: () => { items.push({}); renderTable(); } }, '＋ строка'),
         words && items.length ? h('button', { class: 'chip', onclick: (e) => drawAll(e.target) }, '🎨 Нарисовать картинки ко всем словам (OpenAI)') : null),
       picMsg);
+    }
+    // a test is edited as JSON with a readable preview
+    function renderVpr() {
+      const box = h('textarea', { class: 'field mono', rows: 18, spellcheck: 'false' });
+      box.value = items.length ? JSON.stringify(items, null, 1) : '';
+      const info = h('div', { class: 'hint' });
+      const preview = h('div', { class: 'vpr-preview' });
+      const show = () => {
+        const problems = items.length ? MQ.vprCheck.validate(items) : ['Сгенерируйте тест кнопкой «✨ Сгенерировать тест по юниту»'];
+        info.innerHTML = '';
+        info.append(problems.length ? h('div', { style: 'color:var(--bad)' }, problems.slice(0, 8).join(' · ')) : h('div', { style: 'color:var(--good)' }, '✅ Формат ВПР: 4 задания, 25 баллов'));
+        preview.innerHTML = '';
+        if (!problems.length) items.forEach((t, k) => preview.append(h('details', {},
+          h('summary', {}, `Задание ${k + 1}: ${{ listen: 'аудирование', read: 'чтение', grammar: 'грамматика', form: 'анкета' }[t.type]} ${t.heading ? '· ' + t.heading : ''}`),
+          t.dialog ? t.dialog.map(([w, s]) => h('div', {}, h('b', {}, w + ': '), s)) : null,
+          t.text ? h('p', {}, t.text) : null,
+          (t.questions || []).map((q, i) => h('div', {}, `${'ABCDE'[i]}. ${q.q} — `, q.options.map((o, j) => h('span', { style: j + 1 === q.a ? 'color:var(--good);font-weight:800' : '' }, `${j + 1}) ${o}  `)))),
+          (t.gaps || []).map((g, i) => h('div', {}, `${'ABCDE'[i]}: `, g.options.map((o, j) => h('span', { style: j + 1 === g.a ? 'color:var(--good);font-weight:800' : '' }, `${j + 1}) ${o}  `)))),
+          (t.fields || []).map((f, i) => h('div', {}, `${i + 1}. ${f.label}: ${f.a.join(' / ')}`)))));
+      };
+      box.oninput = () => {
+        try { items = MQ.vprCheck.normalize(JSON.parse(box.value)); box.classList.remove('bad'); show(); }
+        catch (e) { box.classList.add('bad'); info.textContent = '⚠️ Ошибка в JSON: ' + e.message; }
+      };
+      show();
+      tableBox.replaceChildren(info, preview, h('details', {}, h('summary', {}, '✏️ Править вручную (JSON)'), box));
     }
     const picMsg = h('div', { class: 'hint' });
     async function drawOne(it, btn) {
@@ -280,6 +322,18 @@
         checks.length ? checks.map(({ s, cb }) => h('label', { class: 'check' }, cb, ' ' + s.name)) : h('p', { class: 'muted' }, 'Сначала добавьте учениц.')),
       h('div', { class: 'row' },
         h('button', { class: 'primary', onclick: async () => {
+          if (kind.value === 'vpr') {
+            const problems = MQ.vprCheck.validate(items);
+            if (problems.length) { toast('⚠️ ' + problems[0]); return; }
+            try {
+              const saved = await store.saveSet({ id: set.id, title: title.value.trim() || 'Unit test', kind: 'vpr', items, unit_key: unitSel.value, student_id: set.student_id });
+              for (const { s, cb } of checks) if (cb.checked !== mine.has(s.id)) await store.assign(s.id, saved.id, cb.checked);
+              toast('💾 Тест сохранён');
+              if (store.mode === 'cloud' && MQ.ai.hasKey()) await recordAudio([MQ.sets.setToUnit(saved)], status);
+              location.hash = '#/teacher/sets';
+            } catch (e) { toast('⚠️ ' + e.message); }
+            return;
+          }
           const clean = items.filter(it => kind.value === 'verbs' ? it.base && it.v2 && it.v3 : kind.value === 'jeopardy' ? it.q && it.a : it.en)
             .map(it => Object.fromEntries(Object.entries(it).filter(([, v]) => v).map(([k, v]) => [k, String(v).trim()])));
           if (!clean.length) { toast('Добавьте хотя бы одну карточку'); return; }

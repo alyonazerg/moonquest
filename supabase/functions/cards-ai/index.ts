@@ -34,6 +34,10 @@ Use the teacher's material below (topic, word list, grammar or textbook page).
 - Answers short (one word or a short phrase).
 Return ONLY JSON: {"title": "short title", "items": [{"cat": "Category", "pts": 100, "q": "question", "a": "answer"}]}`;
 
+const VPR_PROMPT = `You write an end-of-unit English test for Russian pupils (A1–A2) in the exact format of the Russian ВПР-2027 (4 класс), using ONLY the vocabulary and grammar of the unit material below.
+Exactly 4 tasks in this order: 1) "listen": dialog of 8–12 lines (2 people) + 5 questions A–E with 3 options, "a" = 1/2/3; 2) "read": heading + text 120–170 words + 5 questions (E = "Choose the true sentence."); 3) "grammar": heading + story with gaps {A} {B} {C} {D} {E} + 5 gaps with 3 forms; 4) "form": heading (name) + text 60–80 words + 8 fields, each answer ONE word, numbers as words.
+Return ONLY JSON: {"title":"…","tasks":[{"type":"listen","dialog":[["Mum","…"]],"questions":[{"q":"…","options":["…","…","…"],"a":1}]},{"type":"read","heading":"…","text":"…","questions":[…]},{"type":"grammar","heading":"…","text":"…{A}…","gaps":[{"options":["…","…","…"],"a":2}]},{"type":"form","heading":"…","text":"…","fields":[{"label":"Name","a":["…"]}]}]}`;
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
@@ -43,7 +47,7 @@ function parse(raw: string) {
 }
 
 async function ask(text: string, images: string[], mode = "cards"): Promise<string> {
-  const prompt = (mode === "jeopardy" ? JEOPARDY_PROMPT : PROMPT) + (text ? "\n\nMaterial:\n" + text : "");
+  const prompt = (mode === "jeopardy" ? JEOPARDY_PROMPT : mode === "vpr" ? VPR_PROMPT : PROMPT) + (text ? "\n\nMaterial:\n" + text : "");
   const anthropic = Deno.env.get("ANTHROPIC_API_KEY");
   const openai = Deno.env.get("OPENAI_API_KEY");
   const mistral = Deno.env.get("MISTRAL_API_KEY");
@@ -98,7 +102,8 @@ Deno.serve(async (req) => {
     if (images.some((i) => typeof i !== "string" || !i.startsWith("data:image/") || i.length > 7_000_000)) return json({ error: "Photo is too big." }, 400);
     if (!text.trim() && !images.length) return json({ error: "Write some words or add a photo." }, 400);
 
-    const out = parse(await ask(text, images, mode === "jeopardy" ? "jeopardy" : "cards"));
+    const out = parse(await ask(text, images, ["jeopardy", "vpr"].includes(mode) ? mode : "cards"));
+    if (mode === "vpr") return json(out);
     if (mode === "jeopardy") { out.items = (out.items || []).slice(0, 30); return json(out); }
     out.kind = out.kind === "verbs" ? "verbs" : "words";
     out.items = (out.items || []).slice(0, 40);

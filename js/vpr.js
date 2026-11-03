@@ -67,7 +67,7 @@
   function stopDialog() { stopFlag = true; if (current) current.pause(); MQ.stopSpeech(); }
 
   games.vpr = {
-    title: 'ВПР: тренажёр', icon: '📝', desc: 'Задания в формате ВПР-2027. Весь вариант с таймером или одно задание.',
+    title: 'Test · ВПР format', icon: '📝', desc: 'Тест в формате ВПР-2027: 4 задания, 25 баллов. Весь тест с таймером или одно задание.',
     available: u => !!(u.vpr && u.vpr.tasks && u.vpr.tasks.length),
     items: u => u.vpr.tasks,
     run(ctx, items) {
@@ -83,7 +83,7 @@
       function startScreen() {
         wrap.innerHTML = '';
         wrap.append(h('div', { class: 'panel' },
-          h('h2', {}, '📝 ' + ctx.unit.title),
+          h('h2', {}, '📝 ' + (ctx.unit.vpr.title && ctx.unit.vpr.title !== ctx.unit.title ? `${ctx.unit.vpr.title} · ${ctx.unit.title}` : ctx.unit.title)),
           ctx.unit.vpr.source ? h('p', { class: 'hint' }, 'Источник: ' + ctx.unit.vpr.source) : null,
           h('p', { class: 'muted' }, `4 задания · максимум ${tasks.reduce((s, t) => s + maxOf(t), 0)} баллов · ${minutes} минут`),
           h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => exam(tasks, true) }, `⏱ Весь вариант, как на ВПР`)),
@@ -225,5 +225,49 @@
       startScreen();
     },
   };
-  MQ.vprCheck = { checkField, scoreForm };
+  // Checks a generated / edited test: 4 tasks in the ВПР order and shape. Returns a list of problems.
+  function validate(tasks) {
+    const err = [];
+    if (!Array.isArray(tasks) || tasks.length !== 4) return ['Нужно ровно 4 задания'];
+    const need = ['listen', 'read', 'grammar', 'form'];
+    tasks.forEach((t, k) => {
+      const n = `Задание ${k + 1}: `;
+      if (!t || t.type !== need[k]) { err.push(n + `тип должен быть «${need[k]}»`); return; }
+      const opts3 = (x, i) => { if (!Array.isArray(x.options) || x.options.length !== 3) err.push(n + `${L[i]} — нужно 3 варианта`); if (![1, 2, 3].includes(x.a)) err.push(n + `${L[i]} — ответ должен быть 1, 2 или 3`); };
+      if (t.type === 'listen') {
+        if (!Array.isArray(t.dialog) || t.dialog.length < 4 || t.dialog.some(l => !Array.isArray(l) || l.length !== 2)) err.push(n + 'нужен диалог: [["Mum", "…"], ["Dan", "…"]]');
+        (t.questions || []).length === 5 ? t.questions.forEach(opts3) : err.push(n + 'нужно 5 вопросов A–E');
+      }
+      if (t.type === 'read') {
+        if (!t.text) err.push(n + 'нет текста');
+        (t.questions || []).length === 5 ? t.questions.forEach(opts3) : err.push(n + 'нужно 5 вопросов A–E');
+      }
+      if (t.type === 'grammar') {
+        L.split('').forEach(c => { if (!String(t.text || '').includes(`{${c}}`)) err.push(n + `в тексте нет пропуска {${c}}`); });
+        (t.gaps || []).length === 5 ? t.gaps.forEach(opts3) : err.push(n + 'нужно 5 пропусков A–E');
+      }
+      if (t.type === 'form') {
+        if (!t.text) err.push(n + 'нет текста');
+        if ((t.fields || []).length !== 8 || t.fields.some(f => !f.label || !Array.isArray(f.a) || !f.a.length)) err.push(n + 'нужно 8 полей { label, a: ["ответ"] }');
+      }
+    });
+    return err;
+  }
+  // fill in the standard instructions if a generated test has none
+  const INSTR = {
+    listen: 'Ты услышишь диалог. Для каждого предложения А–Е выбери один правильный вариант ответа из трёх предложенных (1, 2 или 3). Ты услышишь текст дважды.',
+    read: 'Прочитай текст. Для каждого предложения А–Е выбери один правильный вариант ответа из трёх предложенных (1, 2 или 3).',
+    grammar: 'Прочитай рассказ. Вставь вместо каждого пропуска, обозначенного буквами А–Е, нужную грамматическую форму, выбрав её из трёх предложенных вариантов (1, 2 или 3).',
+    form: 'Помоги своему другу заполнить анкету для сайта «Друзья онлайн». Прочитай текст и запиши информацию в таблицу. Под каждым номером запиши только одно слово (без артиклей). Числа необходимо записать словами.',
+  };
+  function normalize(tasks) {
+    (tasks || []).forEach(t => {
+      if (!t) return;
+      if (!t.instruction) t.instruction = INSTR[t.type] || '';
+      (t.questions || t.gaps || []).forEach(x => { x.a = Number(x.a); });
+      (t.fields || []).forEach(f => { if (typeof f.a === 'string') f.a = [f.a]; if (/^(age|number)/i.test(f.label)) f.number = true; });
+    });
+    return tasks;
+  }
+  MQ.vprCheck = { checkField, scoreForm, validate, normalize };
 })();

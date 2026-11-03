@@ -625,3 +625,13 @@ body.theme-magic .st-card { background: linear-gradient(150deg, #7a2f6e, #3a1f4a
 .vpr-form .cell.right { background: #dfffee; }
 .vpr-form .cell.wrong { background: #ffe3e8; }
 .vpr-form .cell.soft { background: #fff6d6; }
+
+/* unit test banner and test editor */
+.panel.unit-test { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; text-align: left; max-width: 760px;
+  border-color: rgba(255, 211, 77, .5); box-shadow: var(--glass-shadow), 0 0 26px rgba(255, 211, 77, .25); }
+.panel.unit-test .title { font-weight: 900; font-size: 1.2em; }
+.field.mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .7em; }
+.field.bad { box-shadow: 0 0 0 3px rgba(255, 107, 129, .6); }
+.vpr-preview { text-align: left; font-size: .85em; }
+.vpr-preview details { margin: 6px 0; padding: 8px 12px; border-radius: 12px; background: rgba(0, 0, 0, .18); }
+.vpr-preview summary { font-weight: 800; cursor: pointer; }
