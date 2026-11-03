@@ -75,7 +75,8 @@
       if (player.paused) await waitIfPaused();
       if (!alive()) break;
       const sp = MQ.speaker(who);
-      const url = MQ.store && (sp.male ? MQ.store.audioUrl('♂ ' + text) : MQ.store.audioUrl(text));
+      const role = MQ.roleOf(who);
+      const url = MQ.store && (MQ.store.audioUrl(`[${role}] ${text}`) || (role === 'woman' ? MQ.store.audioUrl(text) : null));
       // any problem with one line must not stop the player (or leave it "playing" for ever)
       await new Promise((ok) => {
         try {

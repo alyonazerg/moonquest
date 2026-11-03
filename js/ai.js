@@ -8,7 +8,7 @@
   const DEFAULT_VOICE = 'gb_jane_neutral'; // British English preset
   const defaults = {
     provider: 'mistral',
-    key: '', chatModel: 'mistral-small-latest', ttsModel: 'voxtral-mini-tts-latest', voice: DEFAULT_VOICE, refAudio: '', voice2: '',
+    key: '', chatModel: 'mistral-small-latest', ttsModel: 'voxtral-mini-tts-latest', voice: DEFAULT_VOICE, refAudio: '', voice2: '', voiceGirl: '', voiceBoy: '', refMan: '', refGirl: '', refBoy: '',
     anthropicKey: '', claudeModel: 'claude-sonnet-5-5',
     openaiKey: '', openaiModel: 'gpt-4.1-mini', imageModel: 'gpt-image-1',
   };
@@ -235,16 +235,21 @@ Distribute the right answers (1/2/3) evenly. Return ONLY JSON:
   // Mistral's speech API differs between model versions (field "voice" or "voice_id"; old models take only
   // a voice sample). On such an error the next combination is tried, and the one that works is remembered.
   const TTS_MODELS = ['voxtral-mini-tts-2603', 'voxtral-mini-tts-3', 'voxtral-mini-tts-latest'];
+  // voice: a preset id, or { sample: base64 } (a voice made from a short recording)
   async function tts(text, voice) {
-    const useSample = !voice && settings.refAudio;
-    const preset = voice || settings.voice || DEFAULT_VOICE;
+    let sample = null, preset = null;
+    if (voice && typeof voice === 'object') sample = voice.sample;
+    else if (voice) preset = voice;
+    else if (settings.refAudio) sample = settings.refAudio;
+    else preset = settings.voice || DEFAULT_VOICE;
+    const useSample = !!sample;
     const models = [...new Set([settings.ttsModel, ...TTS_MODELS].filter(Boolean))];
     const fields = [...new Set([settings.voiceField || 'voice_id', 'voice_id', 'voice'])];
     const tries = useSample ? models.map(m => [m, 'ref_audio']) : models.flatMap(m => fields.map(f => [m, f]));
     let res, lastErr;
     for (const [model, field] of tries) {
       const body = { model, input: text, response_format: 'mp3' };
-      body[field] = field === 'ref_audio' ? settings.refAudio : preset;
+      body[field] = field === 'ref_audio' ? sample : preset;
       try {
         res = await call('/audio/speech', body);
         if (model !== settings.ttsModel || (field !== 'ref_audio' && field !== settings.voiceField)) saveSettings(field === 'ref_audio' ? { ttsModel: model } : { ttsModel: model, voiceField: field });
@@ -268,6 +273,15 @@ Distribute the right answers (1/2/3) evenly. Return ONLY JSON:
     return new Blob([bytes], { type: sniff(bytes) });
   }
 
+  // Voice for a role in dialogues; null when nothing is set for this role
+  const ROLE_FIELDS = { woman: ['voice', 'refAudio'], man: ['voice2', 'refMan'], girl: ['voiceGirl', 'refGirl'], boy: ['voiceBoy', 'refBoy'] };
+  function roleVoice(role) {
+    const [preset, ref] = ROLE_FIELDS[role] || ROLE_FIELDS.woman;
+    if (settings[ref]) return { sample: settings[ref] };
+    if (settings[preset]) return settings[preset];
+    return role === 'woman' ? DEFAULT_VOICE : null;
+  }
+
   // List of voices (preset + saved in the workspace)
   async function voices() {
     const res = await call('/audio/voices?limit=100');
@@ -279,5 +293,5 @@ Distribute the right answers (1/2/3) evenly. Return ONLY JSON:
   // Voice sample file -> base64 (without the data: prefix)
   async function fileToBase64(file) { return (await fileToDataUrl(file)).replace(/^data:[^,]+,/, ''); }
 
-  MQ.ai = { generateVpr, generateJeopardy, settings, saveSettings, hasKey: () => !!settings.key, recognizerReady, canMakeCards: () => recognizerReady() || MQ.store.mode === 'cloud', PROVIDER_NAMES, recognize, drawPicture, tts, voices, fileToBase64, DEFAULT_VOICE };
+  MQ.ai = { roleVoice, ROLE_FIELDS, generateVpr, generateJeopardy, settings, saveSettings, hasKey: () => !!settings.key, recognizerReady, canMakeCards: () => recognizerReady() || MQ.store.mode === 'cloud', PROVIDER_NAMES, recognize, drawPicture, tts, voices, fileToBase64, DEFAULT_VOICE };
 })();

@@ -26,7 +26,11 @@
     (unit.vocab || []).forEach(v => { t.add(v.en); });
     (unit.sentences || []).forEach(s => t.add(s.en));
     // dialogue lines: boys / men get the second voice, saved under "♂ text"
-    ((unit.vpr && unit.vpr.tasks) || []).forEach(x => (x.dialog || []).forEach(([who, line]) => t.add(MQ.speaker(who).male && MQ.ai.settings.voice2 ? '♂ ' + line : line)));
+    // dialogue lines are recorded with the voice of the speaker's role, saved as "[boy] text" etc.
+    ((unit.vpr && unit.vpr.tasks) || []).forEach(x => (x.dialog || []).forEach(([who, line]) => {
+      const r = MQ.roleOf(who);
+      if (r === 'woman') t.add(line); else if (MQ.ai.roleVoice(r)) t.add(`[${r}] ${line}`);
+    }));
     (unit.grammar || []).forEach(g => g.items.forEach(it => { if (it.q.includes(' ')) t.add(it.q.replace('___', it.a)); }));
     (unit.verbs || []).forEach(v => { t.add(MQ.verbSay(v)); t.add(v.base); t.add(MQ.formSay(v, 'v2')); t.add(MQ.formSay(v, 'v3')); });
     return [...t].filter(Boolean);
@@ -37,8 +41,8 @@
     let done = 0, failed = 0, lastErr = '';
     for (const text of texts) {
       statusEl.textContent = `🔊 Озвучиваю ${done + 1} / ${texts.length}: «${text}»`;
-      const male = text.startsWith('♂ ');
-      try { await store.saveAudio(text, await MQ.ai.tts(male ? text.slice(2) : text, male ? MQ.ai.settings.voice2 : undefined)); }
+      const m = text.match(/^\[(man|girl|boy)\] ([\s\S]*)$/);
+      try { await store.saveAudio(text, await MQ.ai.tts(m ? m[2] : text, m ? MQ.ai.roleVoice(m[1]) : undefined)); }
       catch (e) { failed++; lastErr = e.message; if (failed >= 3 && done === 0) break; }
       done++;
     }
@@ -388,30 +392,69 @@
     const key = input({ type: 'password', value: s.key, placeholder: 'API-ключ Mistral' });
     const chat = input({ value: s.chatModel });
     const ttsM = input({ value: s.ttsModel });
-    const voice = input({ value: s.voice, placeholder: MQ.ai.DEFAULT_VOICE });
-    const voice2 = input({ value: s.voice2, placeholder: 'id мужского голоса (для диалогов)' });
+    const ROLES = [
+      ['woman', '👩 Женщина — основной голос (слова, предложения, мамы, учителя)'],
+      ['man', '👨 Мужчина (папы, дедушки)'],
+      ['girl', '👧 Девочка'],
+      ['boy', '👦 Мальчик'],
+    ];
+    const fields = {};
+    const previews = {};
+    let playing = null;
+    const PHRASE = "Hello! I'm your English voice. Let's play and learn new words together!";
+    async function play(voiceSpec, btn) {
+      MQ.ai.saveSettings({ key: key.value.trim() });
+      if (playing) playing.pause();
+      const k = typeof voiceSpec === 'object' ? 'sample:' + voiceSpec.sample.slice(0, 40) : voiceSpec;
+      btn.disabled = true; btn.textContent = '⏳';
+      try {
+        if (!previews[k]) previews[k] = URL.createObjectURL(await MQ.ai.tts(PHRASE, voiceSpec));
+        playing = new Audio(previews[k]); await playing.play();
+      } catch (e) { msg.textContent = '⚠️ ' + e.message; }
+      btn.disabled = false; btn.textContent = '▶';
+    }
+    const roleRows = ROLES.map(([role, label]) => {
+      const [presetF, refF] = MQ.ai.ROLE_FIELDS[role];
+      const id = input({ value: s[presetF], placeholder: role === 'woman' ? MQ.ai.DEFAULT_VOICE : 'id голоса или образец 📎' });
+      const info = h('span', { class: 'hint' });
+      const file = h('input', { type: 'file', accept: 'audio/*', hidden: true });
+      const showInfo = () => { info.textContent = MQ.ai.settings[refF] ? '🎙 образец загружен' : ''; clearBtn.hidden = !MQ.ai.settings[refF]; };
+      const clearBtn = h('button', { class: 'chip', title: 'Убрать образец', onclick: () => { MQ.ai.saveSettings({ [refF]: '' }); showInfo(); } }, '✕');
+      file.onchange = async () => {
+        const f = file.files[0];
+        if (!f) return;
+        if (f.size > 2_000_000) { info.textContent = '⚠️ файл больше 2 МБ'; return; }
+        MQ.ai.saveSettings({ [refF]: await MQ.ai.fileToBase64(f) });
+        showInfo();
+      };
+      const playBtn = h('button', { class: 'chip', title: 'Послушать', onclick: () => {
+        const spec = MQ.ai.settings[refF] ? { sample: MQ.ai.settings[refF] } : (id.value.trim() || (role === 'woman' ? MQ.ai.DEFAULT_VOICE : ''));
+        if (!spec) { msg.textContent = 'Для этой роли ещё нет голоса: выберите его в списке или загрузите образец.'; return; }
+        play(spec, playBtn);
+      } }, '▶');
+      fields[role] = { id, presetF };
+      showInfo();
+      return h('div', { class: 'role-row' },
+        h('div', { class: 'role-label' }, label),
+        h('div', { class: 'row', style: 'justify-content:flex-start;flex-wrap:nowrap' }, id, playBtn,
+          h('button', { class: 'chip', title: 'Загрузить образец голоса (5–15 секунд, mp3/wav)', onclick: () => file.click() }, '📎'), clearBtn, file),
+        info);
+    });
+    const saveVoices = () => MQ.ai.saveSettings(Object.fromEntries(Object.values(fields).map(f => [f.presetF, f.id.value.trim()])));
     const voicesBox = h('div', { class: 'hint' });
     const listVoices = h('button', { class: 'chip', onclick: async () => {
       MQ.ai.saveSettings({ key: key.value.trim() });
       voicesBox.textContent = 'Загружаю…';
       try {
         const vs = await MQ.ai.voices();
-        voicesBox.replaceChildren(...(vs.length ? vs.map(v => h('span', { class: 'voice-chip' }, `${v.name}${v.lang ? ' · ' + v.lang : ''} `,
-          h('button', { class: 'chip', title: 'Основной голос', onclick: () => { voice.value = v.id; } }, '→ 1'),
-          h('button', { class: 'chip', title: 'Второй голос (мужской, для диалогов)', onclick: () => { voice2.value = v.id; } }, '→ 2'))) : [document.createTextNode('Список пуст')]));
+        voicesBox.replaceChildren(
+          h('div', { class: 'hint' }, '▶ — послушать голос; 👩 👨 👧 👦 — поставить его для этой роли'),
+          ...(vs.length ? vs.map(v => h('span', { class: 'voice-chip' },
+            (() => { const b = h('button', { class: 'chip', onclick: () => play(v.id, b) }, '▶'); return b; })(),
+            `${v.name}${v.lang ? ' · ' + v.lang : ''} `,
+            ...ROLES.map(([role, label]) => h('button', { class: 'chip', title: label, onclick: () => { fields[role].id.value = v.id; saveVoices(); } }, label.split(' ')[0])))) : [document.createTextNode('Список пуст')]));
       } catch (e) { voicesBox.textContent = '⚠️ ' + e.message; }
-    } }, '📋 Показать голоса');
-    const refFile = h('input', { type: 'file', accept: 'audio/*', class: 'field' });
-    const refInfo = h('div', { class: 'hint' }, s.refAudio ? '🎙 Образец голоса загружен — озвучка будет этим голосом.' : 'Можно загрузить свою запись (5–15 секунд, mp3 или wav): Mistral будет говорить этим голосом.');
-    const refClear = h('button', { class: 'chip', hidden: !s.refAudio, onclick: () => { MQ.ai.saveSettings({ refAudio: '' }); refInfo.textContent = 'Образец удалён, используется голос из списка.'; refClear.hidden = true; } }, '✕ Убрать образец');
-    refFile.onchange = async () => {
-      const f = refFile.files[0];
-      if (!f) return;
-      if (f.size > 2_000_000) { refInfo.textContent = '⚠️ Файл больше 2 МБ — возьмите запись покороче.'; return; }
-      MQ.ai.saveSettings({ refAudio: await MQ.ai.fileToBase64(f) });
-      refInfo.textContent = '🎙 Образец голоса загружен — нажмите «Проверить голос».';
-      refClear.hidden = false;
-    };
+    } }, '📋 Показать все голоса Mistral');
     const provider = h('select', { class: 'field' }, Object.entries(MQ.ai.PROVIDER_NAMES).map(([v, l]) => h('option', { value: v }, l)));
     provider.value = s.provider;
     const aKey = input({ type: 'password', value: s.anthropicKey, placeholder: 'sk-ant-…' });
@@ -445,13 +488,14 @@
         h('label', { class: 'lbl' }, 'API-ключ'), key,
         h('label', { class: 'lbl' }, 'Модель Mistral для распознавания карточек'), chat,
         h('label', { class: 'lbl' }, 'Модель озвучки'), ttsM,
-        h('label', { class: 'lbl' }, 'Голос (готовый)'), h('div', { class: 'row', style: 'justify-content:flex-start' }, voice, listVoices), voicesBox,
-        h('label', { class: 'lbl' }, 'Второй голос — мужской, для диалогов (реплики мальчиков и мужчин)'), voice2,
-        h('label', { class: 'lbl' }, 'Или свой образец голоса (вместо основного)'), refFile, refInfo, refClear,
+        h('label', { class: 'lbl' }, 'Голоса (для каждой роли — готовый голос из списка или свой образец 📎 на 5–15 секунд)'),
+        roleRows,
+        h('p', { class: 'hint' }, 'Детских готовых голосов у Mistral может не быть — тогда загрузите образец детского голоса (📎). Записывайте голос ребёнка только с согласия родителей.'),
+        h('div', { class: 'row', style: 'justify-content:flex-start' }, listVoices), voicesBox,
         h('div', { class: 'row', style: 'margin-top:12px' },
-          h('button', { class: 'primary', onclick: () => { MQ.ai.saveSettings({ key: key.value.trim(), chatModel: chat.value.trim(), ttsModel: ttsM.value.trim(), voice: voice.value.trim(), voice2: voice2.value.trim() }); msg.textContent = '💾 Сохранено'; } }, '💾 Сохранить'),
+          h('button', { class: 'primary', onclick: () => { MQ.ai.saveSettings({ key: key.value.trim(), chatModel: chat.value.trim(), ttsModel: ttsM.value.trim() }); saveVoices(); msg.textContent = '💾 Сохранено'; } }, '💾 Сохранить'),
           h('button', { onclick: async () => {
-            MQ.ai.saveSettings({ key: key.value.trim(), chatModel: chat.value.trim(), ttsModel: ttsM.value.trim(), voice: voice.value.trim(), voice2: voice2.value.trim() });
+            MQ.ai.saveSettings({ key: key.value.trim(), chatModel: chat.value.trim(), ttsModel: ttsM.value.trim() }); saveVoices();
             msg.textContent = '🔊 Проверяю…';
             try { const b = await MQ.ai.tts("Hello! Let's learn English."); await new Audio(URL.createObjectURL(b)).play(); msg.textContent = '✅ Голос работает'; }
             catch (e) { msg.textContent = '⚠️ ' + e.message; }

@@ -100,6 +100,8 @@ window.MQ = (function () {
   const MALE = /^(dad|daddy|father|grandpa|granddad|grandfather|uncle|mr|sir|boy|man|dan|ben|max|tim|tom|jack|sam|peter|bob|oliver|harry|leo|nick|alex|mike|paul|john|david|james|ivan|kirill|misha)\b/i;
   const ADULT = /^(mum|mom|mother|dad|daddy|father|grandma|granny|grandmother|grandpa|granddad|grandfather|aunt|uncle|teacher|mr|mrs|ms|miss|sir|doctor|man|woman|shop)/i;
   const speaker = (name) => ({ male: MALE.test(String(name).trim()), adult: ADULT.test(String(name).trim()) });
+  // 'woman' | 'man' | 'girl' | 'boy'
+  const roleOf = (name) => { const s = speaker(name); return s.adult ? (s.male ? 'man' : 'woman') : (s.male ? 'boy' : 'girl'); };
 
   function stopSpeech() {
     speakSeq++;
@@ -201,5 +203,5 @@ window.MQ = (function () {
   };
   const themed = (k) => WORDS[isMagic() ? 'magic' : 'space'][k];
 
-  return { speaker, isMagic, gt, themed, theme, applyTheme, setTheme, sfx, formSay, verbSay, nowUnits, unitOptions, findUnit, pic, courses, addUnit, load, save, h, shuffle, sample, norm, starsFor, uid, toast, speak, stopSpeech };
+  return { roleOf, speaker, isMagic, gt, themed, theme, applyTheme, setTheme, sfx, formSay, verbSay, nowUnits, unitOptions, findUnit, pic, courses, addUnit, load, save, h, shuffle, sample, norm, starsFor, uid, toast, speak, stopSpeech };
 })();

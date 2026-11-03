@@ -655,3 +655,7 @@ body.theme-magic .st-card { background: linear-gradient(150deg, #7a2f6e, #3a1f4a
 .vpr-text, .vpr-script { cursor: pointer; }
 .tap-hint { text-align: center; font-size: .75em; margin: 4px 0 8px; }
 @media (hover: hover) { .vpr-text p:hover { background: rgba(123, 92, 255, .06); } }
+
+.role-row { text-align: left; padding: 8px 0; border-top: 1px solid rgba(255, 255, 255, .1); }
+.role-label { font-size: .8em; margin-bottom: 4px; }
+.role-row .field { min-width: 0 !important; flex: 1; }
