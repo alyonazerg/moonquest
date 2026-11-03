@@ -3,7 +3,8 @@
 (function () {
   const { h, shuffle, sample, norm, speak } = MQ;
   const PRAISE = ['Great job! ⭐', 'Well done! 🚀', 'Super! 🌟', 'Yes! Correct! 🎉', 'Brilliant! ✨'];
-  const praise = () => PRAISE[Math.floor(Math.random() * PRAISE.length)];
+  const MAGIC_PRAISE = ['Magical! ✨', 'Brilliant spell! 🪄', 'Wonderful, young wizard! 🧙', 'Yes! Ten points! 🏆', 'Perfect potion! 🧪'];
+  const praise = () => { const l = MQ.isMagic() ? MAGIC_PRAISE : PRAISE; return l[Math.floor(Math.random() * l.length)]; };
 
   const sayBtn = (text) => h('button', { class: 'chip', title: 'Listen', onclick: (e) => { e.stopPropagation(); speak(text); } }, '🔊');
   const bar = (part) => h('div', { class: 'progress' }, h('div', { style: `width:${Math.round(part * 100)}%` }));
@@ -51,23 +52,58 @@
     step();
   }
 
+  // Keyboard handler that works while `el` is on the page (removed automatically afterwards).
+  // Keys typed into a text field are left alone unless allowInputs is set.
+  function onKeys(el, handler, allowInputs) {
+    const fn = (e) => {
+      if (!el.isConnected) { document.removeEventListener('keydown', fn); return; }
+      if (!allowInputs && e.target.closest && e.target.closest('input, textarea, select')) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      handler(e);
+    };
+    setTimeout(() => document.addEventListener('keydown', fn), 0);
+  }
+  const typeField = (placeholder) => h('input', {
+    class: 'field type-answer', placeholder, autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false',
+  });
+
   // Options buttons: marks right/wrong, calls answer().
-  function optionButtons(options, right, answer, hint, cls) {
+  // Keyboard: 1–4 choose an option; with `typing`, the answer can also be typed (Enter).
+  function optionButtons(options, right, answer, hint, cls, typing) {
     const box = h('div', { class: 'options ' + (cls || '') });
-    options.forEach((opt) => {
-      const b = h('button', {
-        onclick: () => {
-          if (box.dataset.done) return;
-          box.dataset.done = '1';
-          const ok = opt.value === right.value;
-          b.classList.add(ok ? 'right' : 'wrong');
-          if (!ok) [...box.children].forEach((c, k) => { if (options[k].value === right.value) c.classList.add('right'); });
-          answer(ok, hint || 'Look at the green answer.');
-        },
-      }, opt.label);
+    const buttons = [];
+    const choose = (k) => {
+      if (box.dataset.done) return;
+      box.dataset.done = '1';
+      const ok = options[k].value === right.value;
+      buttons[k].classList.add(ok ? 'right' : 'wrong');
+      if (!ok) buttons.forEach((c, j) => { if (options[j].value === right.value) c.classList.add('right'); });
+      if (input) input.disabled = true;
+      answer(ok, hint || 'Look at the green answer.');
+    };
+    options.forEach((opt, k) => {
+      const b = h('button', { onclick: () => choose(k) }, h('span', { class: 'key-badge' }, String(k + 1)), opt.label);
+      buttons.push(b);
       box.append(b);
     });
-    return box;
+    let input = null;
+    if (typing) {
+      input = typeField('⌨️ …or type the answer and press Enter');
+      input.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' || !input.value.trim()) return;
+        e.preventDefault();
+        const k = options.findIndex(o => norm(o.value) === norm(input.value));
+        if (k >= 0) return choose(k);
+        // typed something that is not an option: show the right one
+        box.dataset.done = '1'; input.disabled = true;
+        input.classList.add('bad');
+        buttons.forEach((c, j) => { if (options[j].value === right.value) c.classList.add('right'); });
+        answer(false, hint || 'Look at the green answer.');
+      });
+    }
+    onKeys(box, (e) => { const k = Number(e.key) - 1; if (k >= 0 && k < options.length) { e.preventDefault(); choose(k); } });
+    if (!typing) return box;
+    return h('div', {}, box, input);
   }
 
   const hasPics = (vocab) => vocab.length > 0 && vocab.every(v => v.pic || v.img);
@@ -133,7 +169,7 @@
         body.append(
           h('div', { class: 'prompt' }, 'Listen and choose!'),
           h('button', { class: 'primary', style: 'font-size:1.6em', onclick: () => speak(w.en) }, '🔊 Listen'),
-          optionButtons(opts, { value: w.en }, answer, `It is “${w.en}”.`, pics ? 'pics' : ''),
+          optionButtons(opts, { value: w.en }, answer, `It is “${w.en}”.`, pics ? 'pics' : '', true),
         );
         setTimeout(() => speak(w.en), 300);
         return { answerText: w.en };
@@ -235,8 +271,16 @@
           h('div', { class: 'hint' }, `The word has ${target.replace(/ /g, '').length} letters.`),
           slots, tiles,
           h('div', { class: 'hint feedback-inline' }),
+          h('div', { class: 'hint kb-hint' }, '⌨️ You can type the letters. Backspace takes one back.'),
         );
         render();
+        onKeys(slots, (e) => {
+          if (e.key === 'Backspace') { e.preventDefault(); picked.pop(); render(); return; }
+          if (e.key.length !== 1) return;
+          const want = e.key.toLowerCase();
+          const l = letters.find(x => !picked.includes(x) && x.ch === e.key) || letters.find(x => !picked.includes(x) && x.ch.toLowerCase() === want);
+          if (l) { e.preventDefault(); picked.push(l); render(); check(); }
+        });
         return { answerText: target };
       });
     },
@@ -259,7 +303,7 @@
             sentence.querySelector('b').textContent = it.a;
             speak(it.q.replace('___', it.a));
             answer(ok, msg);
-          }, '💡 ' + (it.hint || it.rule)),
+          }, '💡 ' + (it.hint || it.rule), '', true),
         );
         return { answerText: it.a };
       });
@@ -291,11 +335,18 @@
           if (norm(built) === norm(words.join(' '))) { speak(s.en); answer(tries === 0, `👍 Good, you got it! It is: “${s.en}”`, true); }
           else { tries++; msg.textContent = 'Not yet. Tap a word to take it back and try again.'; }
         };
+        const typed = typeField('⌨️ …or type the sentence and press Enter');
+        typed.addEventListener('keydown', (e) => {
+          if (e.key !== 'Enter' || !typed.value.trim()) return;
+          e.preventDefault();
+          if (norm(typed.value) === norm(s.en)) { typed.disabled = true; speak(s.en); answer(tries === 0, `👍 Good, you got it! It is: “${s.en}”`, true); }
+          else { tries++; typed.classList.add('bad'); msg.textContent = 'Not yet. Check the word order and try again.'; setTimeout(() => typed.classList.remove('bad'), 600); }
+        });
         body.append(
           MQ.pic(s),
           h('div', { class: 'row' }, h('span', { class: 'prompt' }, 'Make a sentence!'), sayBtn(s.en)),
           s.hint ? h('div', { class: 'hint' }, '💡 ' + s.hint) : null,
-          slots, tiles, msg,
+          slots, tiles, msg, typed,
         );
         render();
         return { answerText: s.en };
@@ -305,5 +356,5 @@
 
   MQ.grammarItems = (u, k) => (k == null ? u.grammar : [u.grammar[k]]).flatMap(g => g.items.map(it => Object.assign({ rule: g.rule, topic: g.title, en: it.q }, it)));
   MQ.games = games;
-  MQ.gameKit = { runRounds, optionButtons, sayBtn, bar, praise };
+  MQ.gameKit = { runRounds, optionButtons, sayBtn, bar, praise, onKeys };
 })();

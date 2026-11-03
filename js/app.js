@@ -94,7 +94,7 @@
           h('div', { class: 'big' }, u.icon), h('div', { class: 'title' }, s.title), h('div', { class: 'muted' }, u.subtitle),
           h('div', { class: 'stars' }, `★ ${unitStars(SETS, u)} / ${gameIds(u).length * 3}`));
       })) : null,
-      h('h2', {}, '🪐 My planets'),
+      h('h2', {}, MQ.themed('planets')),
       h('div', { class: 'grid' }, myCourses.flatMap(c => c.units.map(u =>
         h('a', { class: 'tile', href: `${c.href}/${u.id}` },
           h('div', { class: 'big' }, u.icon || '🪐'),
@@ -114,7 +114,7 @@
     return h('a', { class: 'tile folder', href: c.href },
       h('div', { class: 'big' }, c.id === 'irr' ? '📁' : c.icon),
       h('div', { class: 'title' }, c.title),
-      h('div', { class: 'muted' }, c.id === 'irr' ? `${c.units.length} groups · ${verbs} verbs` : `${c.units.length} planets · ${verbs} words`),
+      h('div', { class: 'muted' }, c.id === 'irr' ? `${c.units.length} groups · ${verbs} verbs` : `${c.units.length} ${MQ.themed('planet')} · ${verbs} words`),
       h('div', { class: 'stars' }, `★ ${got} / ${max}`));
   }
 
@@ -238,9 +238,9 @@
       h('div', { class: 'grid' }, gameIds(u).map(id => {
         const g = games[id];
         return h('a', { class: 'tile', href: `${c.href}/${u.id}/${id}` },
-          h('div', { class: 'big' }, g.icon),
-          h('div', { class: 'title' }, g.title),
-          h('div', { class: 'muted' }, g.desc),
+          h('div', { class: 'big' }, MQ.gt(id, g).icon),
+          h('div', { class: 'title' }, MQ.gt(id, g).title),
+          h('div', { class: 'muted' }, MQ.gt(id, g).desc),
           h('div', { class: 'stars' }, starStr(store.getStars(c.key(u, id)))));
       })),
     );
@@ -259,7 +259,7 @@
         if (!itemsOverride || label !== 'mistakes only') store.record(c.key(u, gameId), { stars, correct, total, mistakes });
         root.innerHTML = '';
         root.append(h('div', { class: 'panel' },
-          h('div', { class: 'emoji' }, stars === 3 ? '🏆' : stars === 2 ? '🚀' : '🌱'),
+          h('div', { class: 'emoji' }, stars === 3 ? '🏆' : stars === 2 ? MQ.themed('good') : '🌱'),
           h('h2', {}, stars === 3 ? 'Excellent!' : stars === 2 ? 'Good work!' : 'Keep practising!'),
           h('div', { class: 'stars', style: 'font-size:2em' }, starStr(stars)),
           h('p', {}, `Correct: ${correct} / ${total}`),
@@ -267,15 +267,19 @@
           h('div', { class: 'row' },
             mistakes.length ? h('button', { class: 'primary', onclick: () => play(c, u, gameId, MQ.shuffle(mistakes), 'mistakes only') }, `🔁 Practise mistakes (${mistakes.length})`) : null,
             h('button', { onclick: () => play(c, u, gameId, itemsOverride, label) }, '▶ Play again'),
-            h('a', { class: 'btn', href: `${c.href}/${u.id}` }, '🪐 Back'))));
+            h('a', { class: 'btn', href: `${c.href}/${u.id}` }, MQ.themed('back')))));
       },
     };
+    const tg = MQ.gt(gameId, g);
     app.append(
-      h('a', { href: `${c.href}/${u.id}`, class: 'back' }, '← ' + u.title),
-      h('h1', {}, `${g.icon} ${g.title}`),
-      h('p', { class: 'muted' }, g.desc, itemsOverride ? ` (${label})` : ''),
+      // compact header so the game fits on one screen
+      h('div', { class: 'game-head' },
+        h('a', { href: `${c.href}/${u.id}`, class: 'back' }, '← ' + u.title),
+        h('h1', {}, `${tg.icon} ${tg.title}`),
+        h('p', { class: 'muted' }, tg.desc, itemsOverride ? ` (${label})` : '')),
       root,
     );
+    document.body.classList.add('in-game');
     g.run(ctx, itemsOverride || g.items(u));
   }
 
@@ -299,6 +303,7 @@
     const my = ++seq;
     MQ.stopSpeech();
     app.innerHTML = '';
+    document.body.classList.remove('in-game');
     MQ.applyTheme(store.me && store.me.id);
     renderWho();
     const parts = (location.hash || '#/').split('/');

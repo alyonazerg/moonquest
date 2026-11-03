@@ -69,7 +69,7 @@
       const extra = (box ? box.querySelector('.rn-hud').offsetHeight + box.querySelector('.rn-top').offsetHeight : 120)
         + (controls && controls.offsetParent ? controls.offsetHeight + 14 : 0);
       const topbar = (document.querySelector('.topbar') || {}).offsetHeight || 70;
-      const fit = window.innerHeight - topbar - extra - 24;
+      const fit = window.innerHeight - topbar - extra - ((document.querySelector('.game-head') || {}).offsetHeight || 0) - 30;
       W = w; H = Math.round(Math.max(260, Math.min(560, fit, w * 1.3)));
       dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = W * dpr; canvas.height = H * dpr;
@@ -143,7 +143,36 @@
       g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + hh, r); g.arcTo(x + w, y + hh, x, y + hh, r);
       g.arcTo(x, y + hh, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
     }
+    // a young wizard on a broom with a sparkle trail
+    function drawBroom(x, y, t) {
+      g.save(); g.translate(x, y);
+      for (let i = 0; i < 7; i++) { // sparkles
+        const sy = 30 + ((t / 6 + i * 13) % 60), sx = Math.sin(t / 200 + i) * 8;
+        g.globalAlpha = 1 - (sy - 30) / 60; g.fillStyle = i % 2 ? '#ffd98a' : '#fff';
+        g.beginPath(); g.arc(sx, sy, 2.4, 0, Math.PI * 2); g.fill();
+      }
+      g.globalAlpha = 1;
+      g.rotate(Math.sin(t / 300) * 0.06);
+      // broom stick and bristles
+      g.strokeStyle = '#8a5a2b'; g.lineWidth = 5; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(0, -34); g.lineTo(0, 22); g.stroke();
+      g.fillStyle = '#e0b45a';
+      g.beginPath(); g.moveTo(-4, 18); g.lineTo(-14, 40); g.lineTo(14, 40); g.lineTo(4, 18); g.fill();
+      g.strokeStyle = '#b8862e'; g.lineWidth = 1.5;
+      for (const bx of [-8, -3, 3, 8]) { g.beginPath(); g.moveTo(bx * 0.4, 20); g.lineTo(bx, 39); g.stroke(); }
+      // cloak
+      g.fillStyle = '#5b2a86';
+      g.beginPath(); g.moveTo(-12, -6); g.quadraticCurveTo(0, 26, 12, -6); g.lineTo(6, -16); g.lineTo(-6, -16); g.fill();
+      // face
+      g.fillStyle = '#ffd9b8'; g.beginPath(); g.arc(0, -20, 7, 0, Math.PI * 2); g.fill();
+      // pointy hat with a star
+      g.fillStyle = '#3a1f6a';
+      g.beginPath(); g.moveTo(-13, -24); g.lineTo(13, -24); g.lineTo(3, -50); g.fill();
+      g.fillStyle = '#f5c542'; g.font = '10px sans-serif'; g.textAlign = 'center'; g.fillText('★', 1, -31);
+      g.restore();
+    }
     function drawShip(x, y, t) {
+      if (MQ.isMagic()) return drawBroom(x, y, t);
       g.save(); g.translate(x, y);
       // flame
       const fl = 18 + Math.sin(t / 40) * 6;
@@ -169,7 +198,7 @@
         const x = laneX(i) - gw / 2;
         const glow = gate.resolved ? (i === round.right ? '#3ddc97' : (i === lane ? '#ff6b81' : null)) : null;
         g.save();
-        g.shadowColor = glow || 'rgba(155,123,255,.7)'; g.shadowBlur = glow ? 26 : 16;
+        g.shadowColor = glow || (MQ.isMagic() ? 'rgba(245,197,66,.75)' : 'rgba(155,123,255,.7)'); g.shadowBlur = glow ? 26 : 16;
         const grad = g.createLinearGradient(0, y, 0, y + gh);
         grad.addColorStop(0, glow ? glow : 'rgba(255,255,255,.32)');
         grad.addColorStop(1, glow ? glow + 'aa' : 'rgba(120,100,255,.28)');
@@ -290,7 +319,7 @@
       setTimeout(() => ctx.finish(correct, total, mistakes), 1600);
     }
     overlay.append(
-      h('div', { class: 'rn-title' }, '🚀 Ready?'),
+      h('div', { class: 'rn-title' }, MQ.isMagic() ? '🧹 Ready to fly?' : '🚀 Ready?'),
       h('p', {}, 'Fly into the right answer! ◀ ▶ / swipe / tap a lane'),
       h('button', { class: 'primary', onclick: start }, '▶ Start'));
     updateHud();

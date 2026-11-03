@@ -158,5 +158,27 @@ window.MQ = (function () {
   }
   function setTheme(studentId, t) { save('theme_' + (studentId || 'guest'), t); applyTheme(studentId); }
 
-  return { theme, applyTheme, setTheme, sfx, formSay, verbSay, unitOptions, findUnit, pic, courses, addUnit, load, save, h, shuffle, sample, norm, starsFor, uid, toast, speak, stopSpeech };
+  const isMagic = () => document.body.classList.contains('theme-magic');
+  // Game names in the magic theme (no rockets or planets there)
+  const MAGIC_GAMES = {
+    hangman: { title: 'Magic Hangman', icon: '🕯️', desc: 'Guess the word before all the candles go out!' },
+    vrunner: { title: 'Broom Verb Runner', icon: '🧹', desc: 'Fly your broom into the right verb form!' },
+    wrunner: { title: 'Broom Word Runner', icon: '🧹', desc: 'Look at the picture and fly your broom into the right word.' },
+    blocks: { title: 'Falling Runes', icon: '🔮', desc: 'Catch the magic letters in the right order before the stones reach the top!' },
+    crossword: { title: 'Magic Crossword', icon: '📜', desc: 'Fill in the old scroll. Look at the pictures and clues.' },
+    flash: { icon: '🃏', desc: 'Magic cards: flip, then say how well you knew it.' },
+    jeopardy: { title: 'Wizard Quiz', icon: '🏆', desc: 'Choose a topic and points, answer the question!' },
+  };
+  function gt(id, g) {
+    const m = isMagic() && MAGIC_GAMES[id];
+    return m ? Object.assign({}, g, m) : g;
+  }
+  // Theme words: themed('planets') etc.
+  const WORDS = {
+    space: { planets: '🪐 My planets', planet: 'planets', good: '🚀', back: '🪐 Back' },
+    magic: { planets: '📚 My lessons', planet: 'lessons', good: '🪄', back: '📚 Back' },
+  };
+  const themed = (k) => WORDS[isMagic() ? 'magic' : 'space'][k];
+
+  return { isMagic, gt, themed, theme, applyTheme, setTheme, sfx, formSay, verbSay, unitOptions, findUnit, pic, courses, addUnit, load, save, h, shuffle, sample, norm, starsFor, uid, toast, speak, stopSpeech };
 })();

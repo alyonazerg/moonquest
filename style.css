@@ -443,3 +443,71 @@ body.theme-magic .card3d .front { background: linear-gradient(150deg, #7a2f6e 0%
 body.theme-magic .card3d .back { background: linear-gradient(150deg, #c9922f 0%, #8a4a2a 50%, #3a1f4a 100%); }
 body.theme-magic .progress > div { background: linear-gradient(90deg, #ffd98a, #f5c542, #ff9f43); box-shadow: 0 0 14px rgba(245, 197, 66, .8); }
 body.theme-magic .jp-cat { background: linear-gradient(180deg, rgba(160, 60, 140, .6), rgba(70, 30, 110, .6)); }
+
+/* keyboard helpers */
+.options button { position: relative; }
+.key-badge { position: absolute; top: 5px; left: 8px; font-size: .55em; opacity: .55; font-weight: 900; }
+.options.pics .key-badge { font-size: .22em; }
+.type-answer { display: block; width: min(420px, 100%); margin: 4px auto 0; text-align: center; }
+.type-answer.bad { box-shadow: 0 0 0 3px rgba(255, 107, 129, .6); }
+@media (hover: none) { .key-badge { display: none; } }
+
+/* magic hangman: candles go out instead of the rocket falling apart */
+.hm-candles .p.gone { opacity: 1; transform: none; }
+.hm-candles .p .cflame { transition: opacity .3s; animation: flicker .3s infinite alternate; transform-origin: center 60px; transform-box: fill-box; }
+.hm-candles .p .smoke { opacity: 0; transition: opacity .4s; }
+.hm-candles .p.gone .cflame { opacity: 0; animation: none; }
+.hm-candles .p.gone .smoke { opacity: 1; animation: smoke 1.2s ease-out forwards; }
+@keyframes smoke { from { transform: translateY(0); opacity: .9; } to { transform: translateY(-14px); opacity: 0; } }
+body.theme-magic .hm-rocket-box { width: 150px; }
+
+/* ---------- fit games on one screen (normal browser window, no fullscreen) ---------- */
+.game-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; column-gap: 14px; margin-bottom: 6px; }
+.game-head .back { flex-basis: 100%; margin: 0; font-size: .8em; }
+.game-head h1 { font-size: 1.45em; margin: .1em 0; }
+.game-head p { margin: 0; font-size: .78em; flex-basis: 100%; }
+body.in-game main { padding-top: 0; padding-bottom: 24px; }
+body.in-game .panel { margin: 10px auto; padding: 16px 18px; }
+body.in-game .emoji { font-size: clamp(2.4em, 8vh, 4.4em); }
+body.in-game .progress { margin: 4px 0 8px; }
+body.in-game .feedback { margin: 8px 0; }
+body.in-game .options { margin: 10px auto; gap: 10px; }
+body.in-game .options button { padding: .6em; }
+body.in-game .options.pics button { font-size: clamp(1.6em, 6vh, 2.6em); }
+.card3d { height: clamp(210px, 44vh, 340px); }
+.memory { max-width: min(760px, calc((100vh - 230px) * 1.33)); }
+.hm-rocket-box { height: clamp(90px, 18vh, 150px); width: clamp(70px, 13vh, 110px); }
+body.theme-magic .hm-rocket-box { width: clamp(100px, 18vh, 150px); }
+.hm-word { margin: 10px 0 4px; }
+.hm-keys .hm-key { padding: .35em 0; }
+.slots { min-height: 56px; margin: 8px 0; }
+@media (max-height: 760px) {
+  :root { --fs: 19px; }
+  .topbar { padding: 6px 16px; }
+  .topbar-inner { padding: 6px 14px; }
+  .game-head h1 { font-size: 1.25em; }
+}
+@media (max-height: 620px) { :root { --fs: 17px; } .game-head p { display: none; } }
+
+/* fit: memory always 4 columns, compact jeopardy, phones */
+.memory { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.jp-cell { min-height: clamp(1.9em, 7vh, 2.6em); font-size: clamp(1em, 3.2vh, 1.3em); padding: .3em; }
+.jp-cat { min-height: clamp(2.6em, 8vh, 3.6em); padding: 6px; }
+.jp-board { gap: 6px; }
+.jp-players { margin-bottom: 8px; }
+@media (max-width: 560px) {
+  body.in-game .emoji { font-size: clamp(2em, 7vh, 3.2em); }
+  body.in-game .hint { margin-top: 4px; }
+  .slots { min-height: 48px; padding: 6px; }
+  .tiles button, .slots button { min-width: 42px; padding: .4em .55em; font-size: 1em; }
+  .hm-keys { gap: 4px; }
+  .hm-slot { width: 1.4em; height: 1.7em; font-size: 1.2em; }
+  .mcard { font-size: .75em; border-radius: 12px; }
+}
+
+/* crossword clues scroll on their own, so the board and buttons stay on screen */
+.cw-clue { padding: .35em .6em; margin-bottom: 4px; font-size: .78em; }
+.cw-clues h3 { margin: 2px 0 4px; font-size: .9em; }
+@media (min-width: 761px) { .cw-side { max-height: calc(100vh - 260px); overflow-y: auto; padding-right: 6px; } }
+@media (max-width: 760px) { .cw-side { max-height: 26vh; overflow-y: auto; } }
+@media (hover: none) { .kb-hint { display: none; } }

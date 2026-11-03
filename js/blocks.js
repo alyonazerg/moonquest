@@ -33,10 +33,11 @@
         const box = ctx.root.querySelector('.bl');
         const extra = box ? box.querySelector('.rn-hud').offsetHeight + box.querySelector('.rn-top').offsetHeight : 140;
         const topbar = (document.querySelector('.topbar') || {}).offsetHeight || 70;
-        const fit = window.innerHeight - topbar - extra - 24;
-        S = Math.floor(w / COLS);
+        const fit = Math.max(260, window.innerHeight - topbar - extra - ((document.querySelector('.game-head') || {}).offsetHeight || 0) - 30);
+        // square cells: as wide as possible, but at least 8 rows must fit in the height
+        S = Math.floor(Math.min(w / COLS, fit / 8));
         W = S * COLS;
-        ROWS = Math.max(7, Math.min(12, Math.floor(Math.max(300, Math.min(620, fit)) / S)));
+        ROWS = Math.max(7, Math.min(12, Math.floor(fit / S)));
         H = ROWS * S;
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
         canvas.width = W * dpr; canvas.height = H * dpr;
@@ -131,7 +132,9 @@
       function block(x, y, letter, kind) {
         const p = 3;
         const grad = g.createLinearGradient(0, y, 0, y + S);
-        if (kind === 'stone') { grad.addColorStop(0, '#6d6aa8'); grad.addColorStop(1, '#3b386e'); }
+        const magic = MQ.isMagic();
+        if (kind === 'stone') { grad.addColorStop(0, magic ? '#5a4a5e' : '#6d6aa8'); grad.addColorStop(1, magic ? '#2e2233' : '#3b386e'); }
+        else if (magic) { grad.addColorStop(0, '#f2c96b'); grad.addColorStop(1, '#a05a2c'); }
         else { grad.addColorStop(0, '#a58bff'); grad.addColorStop(1, '#5b3fd6'); }
         g.save();
         g.shadowColor = kind === 'stone' ? 'rgba(0,0,0,.4)' : 'rgba(155,123,255,.8)'; g.shadowBlur = kind === 'stone' ? 4 : 14;
@@ -223,7 +226,7 @@
         tick();
       }
       overlay.append(
-        h('div', { class: 'rn-title' }, '🧱 Word Blocks'),
+        h('div', { class: 'rn-title' }, MQ.isMagic() ? '🔮 Falling Runes' : '🧱 Word Blocks'),
         h('p', {}, 'Tap the falling letters (or type them) in the right order to build the word.'),
         h('button', { class: 'primary', onclick: start }, '▶ Start'));
       updateTop();

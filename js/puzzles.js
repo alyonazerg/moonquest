@@ -90,7 +90,10 @@
     available: u => puzzleWords(u).length >= 4,
     items: u => puzzleWords(u, { max: 10 }),
     run(ctx, items) {
-      const cw = buildCrossword(items.map(x => Object.assign({}, x)));
+      // phones: a smaller crossword (fewer and shorter words) so it fits on the screen
+      const narrow = window.innerWidth < 560;
+      const pool = narrow ? items.filter(x => x.answer.length <= 9).slice(0, 7) : items;
+      const cw = buildCrossword((pool.length >= 4 ? pool : items).map(x => Object.assign({}, x)));
       const cells = {}; // "r,c" -> { input, letter, words: [] }
       cw.words.forEach(w => {
         for (let i = 0; i < w.answer.length; i++) {
@@ -199,7 +202,13 @@
       const fit = () => {
         const wrap = ctx.root.querySelector('.cw-board-wrap');
         if (!wrap) return;
-        const size = Math.max(22, Math.min(46, Math.floor((wrap.clientWidth - 8 - 3 * (cw.cols - 1)) / cw.cols)));
+        const byWidth = Math.floor((wrap.clientWidth - 8 - 3 * (cw.cols - 1)) / cw.cols);
+        // on wide screens the board must also fit in the height (clues are on the side)
+        const wide = window.innerWidth > 760;
+        const topbar = (document.querySelector('.topbar') || {}).offsetHeight || 70;
+        const avail = window.innerHeight - topbar - ((document.querySelector('.game-head') || {}).offsetHeight || 0) - 120;
+        const byHeight = wide ? Math.floor((avail - 3 * (cw.rows - 1)) / cw.rows) : 99;
+        const size = Math.max(20, Math.min(46, byWidth, byHeight));
         board.style.setProperty('--cw', size + 'px');
       };
       requestAnimationFrame(fit);
@@ -223,6 +232,23 @@
         <linearGradient id="hf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6a8"/><stop offset=".5" stop-color="#ffb03b"/><stop offset="1" stop-color="#ff5028" stop-opacity="0"/></linearGradient>
       </defs></svg>`;
   }
+  // six candles; each mistake blows one out
+  function candlesSvg() {
+    const c = (i) => {
+      const x = 12 + i * 19;
+      return `<g class="p p${6 - i}">
+        <rect x="${x - 5}" y="70" width="10" height="44" rx="2" fill="#f3ead8"/>
+        <rect x="${x + 1}" y="70" width="4" height="44" fill="rgba(0,0,0,.12)"/>
+        <line x1="${x}" y1="70" x2="${x}" y2="63" stroke="#333" stroke-width="1.5"/>
+        <g class="cflame"><ellipse cx="${x}" cy="56" rx="5" ry="9" fill="#ffcf5a"/><ellipse cx="${x}" cy="58" rx="2.2" ry="4.5" fill="#fff6d0"/>
+        <circle cx="${x}" cy="56" r="14" fill="rgba(255,200,90,.25)"/></g>
+        <g class="smoke"><path d="M${x} 60 q-5 -8 0 -16 q5 -8 0 -16" stroke="rgba(220,220,230,.7)" stroke-width="2" fill="none"/></g>
+      </g>`;
+    };
+    return `<svg viewBox="0 0 120 120" class="hm-rocket hm-candles" aria-hidden="true">${[0, 1, 2, 3, 4, 5].map(c).join('')}
+      <rect x="2" y="112" width="116" height="6" rx="3" fill="#8a5a2b"/></svg>`;
+  }
+
   games.hangman = {
     title: 'Space Hangman', icon: '🛸', desc: 'Guess the word letter by letter before the rocket falls apart!',
     available: u => puzzleWords(u, { letters: false }).length >= 3,
@@ -238,7 +264,7 @@
         const used = new Set();
         let wrong = 0, over = false;
         wrap.innerHTML = '';
-        const rocket = h('div', { class: 'hm-rocket-box' }); rocket.innerHTML = rocketSvg();
+        const rocket = h('div', { class: 'hm-rocket-box' }); rocket.innerHTML = MQ.isMagic() ? candlesSvg() : rocketSvg();
         const slots = h('div', { class: 'hm-word' });
         const info = h('div', { class: 'hm-info' });
         const keys = h('div', { class: 'hm-keys' });
@@ -249,7 +275,7 @@
           x.answer.split('').forEach(ch => slots.append(ch === ' '
             ? h('span', { class: 'hm-gap' })
             : h('span', { class: 'hm-slot' + (used.has(ch) || over ? ' open' : '') + (over && !used.has(ch) ? ' missed' : '') }, used.has(ch) || over ? ch : '')));
-          info.textContent = `Lives: ${'🚀'.repeat(PARTS - wrong)}${'·'.repeat(wrong)}`;
+          info.textContent = `Lives: ${(MQ.isMagic() ? '🕯️' : '🚀').repeat(PARTS - wrong)}${'·'.repeat(wrong)}`;
           for (let k = 1; k <= PARTS; k++) rocket.querySelector('.p' + k).classList.toggle('gone', k <= wrong);
         };
         const press = (ch) => {

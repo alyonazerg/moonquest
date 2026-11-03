@@ -102,7 +102,7 @@
           h('div', { class: 'hint' }, f === 'v2' ? 'Yesterday I … (V2)' : 'I have … (V3)'),
           optionButtons(shuffle([right, ...wrong]).map(o => ({ value: o, label: o })), { value: right }, (ok, msg) => {
             speak(sayForms(v)); answer(ok, msg);
-          }, '💡 ' + forms(v)),
+          }, '💡 ' + forms(v), '', true),
         );
         return { answerText: forms(v) };
       });
