@@ -105,6 +105,8 @@
     changed();
   }
 
+  const tapHint = () => h('div', { class: 'hint tap-hint' }, '👆 Tap any word in the text to hear it or add it to My words');
+
   games.vpr = {
     title: 'Test · ВПР format', icon: '📝', desc: 'Тест в формате ВПР-2027: 4 задания, 25 баллов. Весь тест с таймером или одно задание.',
     available: u => !!(u.vpr && u.vpr.tasks && u.vpr.tasks.length),
@@ -188,7 +190,7 @@
               questionList(cur, t), answerRow(cur));
           }
           if (t.type === 'read') {
-            panel.append(h('div', { class: 'vpr-text' }, h('h3', {}, t.heading), t.text.split('\n').map(p => h('p', {}, p))), questionList(cur, t), answerRow(cur));
+            panel.append(h('div', { class: 'vpr-text' }, h('h3', {}, t.heading), t.text.split('\n').map(p => h('p', {}, p))), tapHint(), questionList(cur, t), answerRow(cur));
           }
           if (t.type === 'grammar') {
             const p = h('div', { class: 'vpr-text gram' }, h('h3', {}, t.heading));
@@ -211,7 +213,7 @@
           }
           if (t.type === 'form') {
             const sc = checked ? scoreForm(t, answers[cur]) : null;
-            panel.append(h('div', { class: 'vpr-text' }, h('h3', {}, t.heading), h('p', {}, t.text)),
+            panel.append(h('div', { class: 'vpr-text' }, h('h3', {}, t.heading), h('p', {}, t.text)), tapHint(),
               h('table', { class: 'table vpr-form' }, t.fields.map((f, i) => h('tr', {},
                 h('td', {}, f.label),
                 h('td', {}, h('span', { class: 'muted' }, (i + 1) + '. '),
@@ -226,7 +228,14 @@
           }
           body.append(panel);
           const last = cur === list.length - 1;
+          const clearTask = () => {
+            if (!confirm('Очистить ответы в этом задании?')) return;
+            answers[cur] = t.type === 'form' ? t.fields.map(() => '') : (t.questions || t.gaps).map(() => null);
+            render();
+          };
           body.append(h('div', { class: 'row' },
+            !checked ? h('button', { class: 'ghost', onclick: clearTask }, '🧹 Очистить ответы') : null,
+            checked ? h('button', { class: 'ghost', onclick: () => { stopDialog(); exam(list, strict); } }, '🔄 Пройти заново') : null,
             cur > 0 ? h('button', { onclick: () => { cur--; render(); } }, '← Назад') : null,
             !last ? h('button', { class: 'primary', onclick: () => { cur++; render(); window.scrollTo(0, 0); } }, 'Дальше →') : null,
             !checked && last ? h('button', { class: 'primary', onclick: () => {
@@ -265,6 +274,7 @@
             full ? h('p', { class: 'hint' }, 'Шкала ВПР: 0–9 «2» · 10–14 «3» · 15–21 «4» · 22–25 «5»') : null,
             h('div', { class: 'row', style: 'margin-top:12px' },
               h('button', { onclick: () => { cur = 0; render(); } }, '🔍 Посмотреть ошибки'),
+              h('button', { onclick: () => exam(list, strict) }, '🔄 Пройти заново'),
               h('button', { class: 'primary', onclick: () => ctx.finish(got, max, mistakes) }, 'Готово 🏁'))));
         }
         render();

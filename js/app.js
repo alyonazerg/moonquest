@@ -203,14 +203,7 @@
       if (!clean.length) { msg.textContent = 'Add at least one card.'; return; }
       saveBtn.disabled = true;
       try {
-        const key = unitSel.value;
-        const target = MQ.findUnit(key);
-        const all = await store.sets();
-        const own = all.find(s => s.student_id === store.me.id && s.unit_key === key && s.kind === 'words');
-        const set = own
-          ? Object.assign(own, { items: own.items.concat(clean.filter(x => !own.items.some(o => o.en.toLowerCase() === x.en.toLowerCase()))) })
-          : { title: `My words · ${target ? target.u.title : 'cards'}`, kind: 'words', items: clean, unit_key: key, student_id: store.me.id };
-        const saved = await store.saveSet(set);
+        const { set: saved } = await MQ.dict.saveMyWords(unitSel.value, clean);
         location.hash = `#/s/${saved.id}`;
       } catch (e) { msg.textContent = '⚠️ ' + e.message; saveBtn.disabled = false; }
     } }, '💾 Save my cards');
@@ -289,11 +282,14 @@
       },
     };
     const tg = MQ.gt(gameId, g);
+    // words tapped in texts go to this unit (ВПР variants: to the unit the student studies now)
+    MQ.pageUnitKey = c === SETS ? (u.unitKey || null) : c.id === 'vpr' ? null : `${c.id}/${u.id}`;
     app.append(
       // compact header so the game fits on one screen
       h('div', { class: 'game-head' },
         h('a', { href: `${c.href}/${u.id}`, class: 'back' }, '← ' + u.title),
-        h('h1', {}, `${tg.icon} ${tg.title}`),
+        h('h1', {}, `${tg.icon} ${tg.title}`,
+          h('button', { class: 'chip restart', title: 'Start again: clear all answers', onclick: () => { MQ.stopSpeech(); play(c, u, gameId, itemsOverride, label); } }, '🔄')),
         h('p', { class: 'muted' }, tg.desc, itemsOverride ? ` (${label})` : '')),
       root,
     );

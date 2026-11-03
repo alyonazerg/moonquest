@@ -368,12 +368,13 @@
         fb.textContent = `${ok} / ${items.length} correct`;
         MQ.sfx[ok === items.length ? 'win' : ok >= items.length / 2 ? 'good' : 'bad']();
         render();
-        checkBtn.hidden = true; doneBtn.hidden = false;
+        checkBtn.hidden = true; clearBtn.hidden = true; doneBtn.hidden = false;
         const mistakes = items.filter((it, k) => !(filled[k] && filled[k].w === it.a)).map(it => Object.assign({ en: it.q.replace('___', it.a) }, it));
         doneBtn.onclick = () => ctx.finish(ok, items.length, mistakes);
       } }, '✔ Check');
       const doneBtn = h('button', { class: 'primary', hidden: true }, 'Finish 🏁');
-      ctx.root.append(h('div', { class: 'panel gf' }, h('div', { class: 'hint' }, 'Words:'), bankBox, list, fb, h('div', { class: 'row' }, checkBtn, doneBtn)));
+      const clearBtn = h('button', { class: 'ghost', onclick: () => { if (checked) return; filled.fill(null); selGap = 0; render(); } }, '🧹 Clear');
+      ctx.root.append(h('div', { class: 'panel gf' }, h('div', { class: 'hint' }, 'Words:'), bankBox, list, fb, h('div', { class: 'row' }, clearBtn, checkBtn, doneBtn)));
       render();
     },
   };

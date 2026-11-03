@@ -201,6 +201,11 @@
               if (c.input.value !== c.letter) { c.input.value = c.letter; c.input.classList.add('shown'); c.hinted = true; hints++; break; }
             }
           } }, '💡 Hint'),
+          h('button', { class: 'ghost', onclick: () => {
+            if (!confirm('Clear the whole crossword?')) return;
+            Object.values(cells).forEach(c => { c.input.value = ''; c.hinted = false; c.input.classList.remove('ok', 'bad', 'shown'); });
+            msg.textContent = '';
+          } }, '🧹 Clear'),
           h('button', { class: 'primary', onclick: () => check(false) }, '✔ Check'),
           h('button', { class: 'ghost', onclick: () => check(true) }, "🏳 Show answers")),
       );

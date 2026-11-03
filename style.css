@@ -646,3 +646,12 @@ body.theme-magic .st-card { background: linear-gradient(150deg, #7a2f6e, #3a1f4a
 .now-row .title { font-size: 1em !important; }
 
 .voice-chip { display: inline-flex; align-items: center; gap: 4px; margin: 3px 6px 3px 0; font-size: .8em; }
+
+/* restart button and tap-a-word dictionary */
+.game-head h1 .restart { vertical-align: middle; margin-left: 10px; font-size: .45em; }
+.word-pop { position: absolute; z-index: 30; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 16px;
+  background: linear-gradient(150deg, #3a2aa8, #1d2f8a); border: 1px solid rgba(255, 255, 255, .35); box-shadow: 0 14px 40px rgba(0, 0, 0, .55); animation: pop .2s ease-out; }
+.word-pop b { font-size: 1.05em; padding: 0 4px; }
+.vpr-text, .vpr-script { cursor: pointer; }
+.tap-hint { text-align: center; font-size: .75em; margin: 4px 0 8px; }
+@media (hover: hover) { .vpr-text p:hover { background: rgba(123, 92, 255, .06); } }
