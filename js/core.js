@@ -73,6 +73,7 @@ window.MQ = (function () {
   const memAudio = {};
   async function speak(text) {
     if (!text) return;
+    text = sayWord(text);
     stopSpeech();
     try {
       let url = MQ.store && MQ.store.audioUrl(text);
@@ -141,13 +142,18 @@ window.MQ = (function () {
 
   // ---------- pronunciation of verb forms ----------
   // Forms spelled like the base form but pronounced differently (read – read [red] – read [red]).
-  const PRON = { read: 'red' };
+  // Speech engines read a lonely "read" as the past form [red], so the base form is sent as "reed".
+  const PRON = { read: 'red' };       // V2 / V3
+  const BASE_PRON = { read: 'reed' }; // V1
   function formSay(v, f) {
     const w = String(v[f] || '');
-    if (f !== 'base' && w === v.base && PRON[w]) return PRON[w];
+    if (f === 'base') return BASE_PRON[w] || w;
+    if (w === v.base && PRON[w]) return PRON[w];
     return w.replace(/\//g, ' or ');
   }
-  const verbSay = (v) => `${v.base}, ${formSay(v, 'v2')}, ${formSay(v, 'v3')}`;
+  const verbSay = (v) => `${formSay(v, 'base')}, ${formSay(v, 'v2')}, ${formSay(v, 'v3')}`;
+  // a single word on its own (e.g. "read" on a card or in Matching)
+  const sayWord = (text) => BASE_PRON[String(text).trim().toLowerCase()] || text;
 
   // ---------- themes: 'space' (default) or 'magic', remembered per student on this device ----------
   function theme(studentId) { return load('theme_' + (studentId || 'guest'), 'space'); }
@@ -168,6 +174,9 @@ window.MQ = (function () {
     crossword: { title: 'Magic Crossword', icon: '📜', desc: 'Fill in the old scroll. Look at the pictures and clues.' },
     flash: { icon: '🃏', desc: 'Magic cards: flip, then say how well you knew it.' },
     jeopardy: { title: 'Wizard Quiz', icon: '🏆', desc: 'Choose a topic and points, answer the question!' },
+    whack: { title: 'Pixie Pop', icon: '🧚', desc: 'Pixies pop out of the cauldrons. Hit only the right word, fast!' },
+    sort: { title: 'Potion Sort', icon: '🧪', desc: 'Put every word into the right cauldron.' },
+    match: { title: 'Magic Match', icon: '🔗', desc: 'Connect each word with its pair. Click left, then right.' },
   };
   function gt(id, g) {
     const m = isMagic() && MAGIC_GAMES[id];

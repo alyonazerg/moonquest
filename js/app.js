@@ -87,6 +87,13 @@
           h('a', { class: 'btn', href: `${now.c.href}/${now.u.id}` }, '🪐 Open'),
           h('a', { class: 'btn primary', href: `#/add/${now.c.id}/${now.u.id}` }, '＋ Add my words'))) :
         h('div', { class: 'row' }, h('a', { class: 'btn primary', href: '#/add' }, '＋ Add my words')),
+      h('div', { class: 'row', style: 'margin-top:10px' }, h('button', { onclick: () => {
+        // any of my units (textbook, folders) and any game in it
+        const pool = [...myCourses, ...(showVerbs ? [courses.irr] : []), courses.magic].flatMap(c => c.units.map(u => ({ c, u })));
+        const { c, u } = pool[Math.floor(Math.random() * pool.length)];
+        const ids = gameIds(u);
+        location.hash = `${c.href}/${u.id}/${ids[Math.floor(Math.random() * ids.length)]}`;
+      } }, '🎲 Surprise me: random game')),
       tasks.length ? h('h2', {}, '🗂 My cards & tasks') : null,
       tasks.length ? h('div', { class: 'grid' }, tasks.map(s => {
         const u = MQ.sets.setToUnit(s);
@@ -235,6 +242,10 @@
           u.verbs.map(v => h('tr', {},
             h('td', {}, v.base), h('td', {}, v.v2), h('td', {}, v.v3),
             h('td', {}, h('button', { class: 'chip', onclick: () => MQ.speak(`${v.base}, ${v.v2}, ${v.v3}`) }, '🔊')))))) : null,
+      h('div', { class: 'row', style: 'margin-bottom:12px' }, h('button', { class: 'primary', onclick: () => {
+        const ids = gameIds(u);
+        location.hash = `${c.href}/${u.id}/${ids[Math.floor(Math.random() * ids.length)]}`;
+      } }, '🎲 Random game')),
       h('div', { class: 'grid' }, gameIds(u).map(id => {
         const g = games[id];
         return h('a', { class: 'tile', href: `${c.href}/${u.id}/${id}` },
