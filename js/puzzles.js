@@ -152,10 +152,14 @@
         }));
       const msg = h('div', { class: 'feedback' });
       let hints = 0;
-      const wordOk = (w) => w.answer.split('').every((ch, i) => {
-        const r = w.r + (w.dir === 'down' ? i : 0), c = w.c + (w.dir === 'across' ? i : 0);
-        return cells[r + ',' + c].input.value === ch;
-      });
+      const wordCells = (w) => w.answer.split('').map((ch, i) => cells[(w.r + (w.dir === 'down' ? i : 0)) + ',' + (w.c + (w.dir === 'across' ? i : 0))]);
+      const wordOk = (w) => wordCells(w).every(c => c.input.value === c.letter);
+      // a word counts as solved only if no letter in it was given by a hint or "show answers"
+      const solvedAlone = (w) => wordOk(w) && wordCells(w).every(c => !c.hinted);
+      const result = () => {
+        const clean = cw.words.filter(solvedAlone);
+        return { n: clean.length, missed: cw.words.filter(w => !clean.includes(w)).map(w => w.item) };
+      };
       function check(final) {
         let wrongCells = 0;
         Object.values(cells).forEach(c => {
@@ -166,15 +170,17 @@
         });
         const done = cw.words.filter(wordOk);
         if (done.length === cw.words.length) {
-          msg.className = 'feedback good'; msg.textContent = 'You did it! 🎉'; MQ.sfx.win();
-          setTimeout(() => ctx.finish(Math.max(0, cw.words.length - Math.floor(hints / 2)), cw.words.length, []), 900);
+          const r = result();
+          if (r.n === cw.words.length) { msg.className = 'feedback good'; msg.textContent = 'You did it! 🎉'; MQ.sfx.win(); }
+          else { msg.className = 'feedback soft'; msg.textContent = `Done! ${r.n} of ${cw.words.length} words without hints.`; MQ.sfx.pop(); }
+          setTimeout(() => ctx.finish(r.n, cw.words.length, r.missed), 1100);
         } else if (final) {
           cw.words.forEach(w => w.answer.split('').forEach((ch, i) => {
             const c = cells[(w.r + (w.dir === 'down' ? i : 0)) + ',' + (w.c + (w.dir === 'across' ? i : 0))];
-            if (c.input.value !== ch) { c.input.value = ch; c.input.classList.add('shown'); }
+            if (c.input.value !== ch) { c.input.value = ch; c.input.classList.add('shown'); c.hinted = true; }
           }));
-          const missed = cw.words.filter(w => !done.includes(w));
-          setTimeout(() => ctx.finish(done.length, cw.words.length, missed.map(w => w.item)), 1500);
+          const r = result();
+          setTimeout(() => ctx.finish(r.n, cw.words.length, r.missed), 1500);
         } else {
           msg.className = 'feedback ' + (wrongCells ? 'bad' : 'good');
           MQ.sfx[wrongCells ? 'bad' : 'good']();
@@ -192,7 +198,7 @@
             if (!target) return;
             for (let i = 0; i < target.answer.length; i++) {
               const c = cells[(target.r + (target.dir === 'down' ? i : 0)) + ',' + (target.c + (target.dir === 'across' ? i : 0))];
-              if (c.input.value !== c.letter) { c.input.value = c.letter; c.input.classList.add('shown'); hints++; break; }
+              if (c.input.value !== c.letter) { c.input.value = c.letter; c.input.classList.add('shown'); c.hinted = true; hints++; break; }
             }
           } }, '💡 Hint'),
           h('button', { class: 'primary', onclick: () => check(false) }, '✔ Check'),
