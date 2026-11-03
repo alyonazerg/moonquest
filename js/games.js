@@ -24,12 +24,14 @@
       const nextBtn = h('button', { class: 'primary', onclick: () => { i++; step(); } }, i === items.length - 1 ? 'Finish 🏁' : 'Next ➜');
       nextBtn.hidden = true;
       let answered = false;
-      const answer = (ok, msg) => {
+      // ok: right first time · soft: right in the end (after tries / hints) · otherwise wrong.
+      // "soft" is shown in yellow with a gentle sound, but the item still goes to "practise mistakes".
+      const answer = (ok, msg, soft) => {
         if (answered) return;
         answered = true;
         if (ok) correct++; else mistakes.push(item);
-        MQ.sfx[ok ? 'good' : 'bad']();
-        fb.className = 'feedback ' + (ok ? 'good' : 'bad');
+        MQ.sfx[ok ? 'good' : soft ? 'pop' : 'bad']();
+        fb.className = 'feedback ' + (ok ? 'good' : soft ? 'soft' : 'bad');
         fb.textContent = ok ? praise() : msg;
         nextBtn.hidden = false;
         if (dunnoBtn) dunnoBtn.hidden = true;
@@ -211,7 +213,7 @@
         const check = () => {
           if (picked.length !== target.length) return;
           const word = picked.map(l => l.ch).join('');
-          if (word === target) { speak(sayText); answer(hintsUsed < 2, hintsUsed < 2 ? '' : `Good! Next time try with fewer hints. It is “${target}”.`); }
+          if (word === target) { speak(sayText); answer(hintsUsed < 2, `👍 Good! Next time try with fewer hints. It is “${target}”.`, true); }
           else { body.querySelector('.feedback-inline').textContent = 'Not yet. Try again! Tap a letter to take it back.'; }
         };
         const hintBtn = h('button', {
@@ -286,7 +288,7 @@
         const check = () => {
           if (picked.length !== words.length) return;
           const built = picked.map(w => w.t).join(' ');
-          if (norm(built) === norm(words.join(' '))) { speak(s.en); answer(tries === 0, `Good! It is: “${s.en}”`); }
+          if (norm(built) === norm(words.join(' '))) { speak(s.en); answer(tries === 0, `👍 Good, you got it! It is: “${s.en}”`, true); }
           else { tries++; msg.textContent = 'Not yet. Tap a word to take it back and try again.'; }
         };
         body.append(

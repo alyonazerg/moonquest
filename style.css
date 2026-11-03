@@ -146,6 +146,7 @@ button:disabled { opacity: .45; cursor: default; transform: none; }
 .feedback { min-height: 1.6em; font-weight: 900; margin: 12px 0; }
 .feedback.good { color: var(--good); text-shadow: 0 0 16px rgba(61, 220, 151, .6); }
 .feedback.bad { color: var(--bad); text-shadow: 0 0 16px rgba(255, 107, 129, .5); }
+.feedback.soft { color: var(--accent); text-shadow: 0 0 16px rgba(255, 211, 77, .5); }
 
 /* ---------- forms ---------- */
 .field {
