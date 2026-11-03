@@ -67,7 +67,7 @@
     return box;
   }
 
-  const hasPics = (vocab) => vocab.length > 0 && vocab.every(v => v.pic);
+  const hasPics = (vocab) => vocab.length > 0 && vocab.every(v => v.pic || v.img);
 
   const games = {};
 
@@ -97,7 +97,7 @@
             if (flipped) speak(w.say || w.en);
           },
         },
-        w.pic ? h('div', { class: 'emoji' }, w.pic) : null,
+        MQ.pic(w),
         h('div', { class: 'word' }, w.en),
         back);
         back.textContent = 'Tap to turn over';
@@ -126,7 +126,7 @@
       const ru = !pics && vocab.every(v => v.ru);
       runRounds(ctx, items, (w, body, answer) => {
         const opts = shuffle([w, ...sample(vocab.filter(v => v !== w), 3)])
-          .map(v => ({ value: v.en, label: pics ? v.pic : ru ? v.ru : v.en }));
+          .map(v => ({ value: v.en, label: pics ? MQ.pic(v, 'opt-pic') : ru ? v.ru : v.en }));
         body.append(
           h('div', { class: 'prompt' }, 'Listen and choose!'),
           h('button', { class: 'primary', style: 'font-size:1.6em', onclick: () => speak(w.en) }, '🔊 Listen'),
@@ -141,12 +141,12 @@
   // ---------- 3. Find pairs (memory) ----------
   games.memory = {
     title: 'Find pairs', icon: '🧠', desc: 'Find the word and its pair.',
-    available: u => (u.vocab || []).filter(v => v.pic || v.ru).length >= 4,
-    items: u => sample(u.vocab.filter(v => v.pic || v.ru), 6),
+    available: u => (u.vocab || []).filter(v => v.pic || v.img || v.ru).length >= 4,
+    items: u => sample(u.vocab.filter(v => v.pic || v.img || v.ru), 6),
     run(ctx, items) {
       // a card pair: picture (or translation) <-> English word
       const cards = shuffle(items.flatMap((w, k) => [
-        { k, face: w.pairA ? h('span', {}, w.pairA) : w.pic ? h('span', { class: 'e' }, w.pic) : h('span', {}, w.ru), w },
+        { k, face: w.pairA ? h('span', {}, w.pairA) : (w.pic || w.img) ? MQ.pic(w, 'e') : h('span', {}, w.ru), w },
         { k, face: h('span', {}, w.pairB || w.en), w },
       ]));
       let open = [], pairs = 0, tries = 0, lock = false;
@@ -223,8 +223,8 @@
           },
         }, '💡 Hint');
         body.append(
-          w.pic ? h('div', { class: 'emoji' }, w.pic) : null,
-          w.prompt || (!w.pic && w.ru) ? h('div', { class: 'prompt' }, w.prompt || w.ru) : null,
+          MQ.pic(w),
+          w.prompt || (!w.pic && !w.img && w.ru) ? h('div', { class: 'prompt' }, w.prompt || w.ru) : null,
           h('div', { class: 'row' }, sayBtn(target), hintBtn),
           h('div', { class: 'hint' }, `The word has ${target.replace(/ /g, '').length} letters.`),
           slots, tiles,
@@ -247,7 +247,7 @@
         const sentence = h('div', { class: 'prompt' }, parts[0], h('b', { style: 'color:var(--accent)' }, '___'), parts.slice(1).join('___'));
         body.append(
           h('div', { class: 'hint' }, '📘 ' + it.topic),
-          it.pic ? h('div', { class: 'emoji' }, it.pic) : null,
+          MQ.pic(it),
           sentence,
           optionButtons(shuffle(it.options).map(o => ({ value: o, label: o })), { value: it.a }, (ok, msg) => {
             sentence.querySelector('b').textContent = it.a;
@@ -286,7 +286,7 @@
           else { tries++; msg.textContent = 'Not yet. Tap a word to take it back and try again.'; }
         };
         body.append(
-          s.pic ? h('div', { class: 'emoji' }, s.pic) : null,
+          MQ.pic(s),
           h('div', { class: 'row' }, h('span', { class: 'prompt' }, 'Make a sentence!'), sayBtn(s.en)),
           s.hint ? h('div', { class: 'hint' }, '💡 ' + s.hint) : null,
           slots, tiles, msg,

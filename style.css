@@ -109,6 +109,13 @@ input[type=file].field { background: rgba(255, 255, 255, .1); color: var(--text)
 .cell { font: inherit; width: 100%; min-width: 90px; padding: 6px 8px; border-radius: 8px; border: 0; background: rgba(255, 255, 255, .92); color: #1b1b3a; }
 .cell.pic { min-width: 60px; width: 70px; text-align: center; }
 
+/* generated pictures */
+.pic-img { display: block; margin: 0 auto; border-radius: 16px; background: #fff; object-fit: cover; }
+.pic-img.emoji { width: 150px; height: 150px; }
+.pic-img.opt-pic { width: 100%; max-width: 120px; aspect-ratio: 1; }
+.pic-img.e { width: 85%; height: 85%; }
+.cell-img { width: 44px; height: 44px; border-radius: 8px; vertical-align: middle; background: #fff; object-fit: cover; }
+
 /* flashcard */
 .flash {
   background: var(--card2); border-radius: var(--radius); padding: 30px 20px; min-height: 250px;
@@ -154,3 +161,4 @@ input[type=file].field { background: rgba(255, 255, 255, .1); color: var(--text)
   .panel { padding: 16px; }
   .topic { flex-direction: column; align-items: flex-start; }
 }
+.mcard.hidden > * { display: none; }

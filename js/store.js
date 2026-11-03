@@ -56,6 +56,8 @@
       save('progress_' + studentId, all);
     },
     audioUrl: () => null,
+    // Pictures are kept inside the set as small data URLs
+    saveImage: (blob) => new Promise((ok, fail) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => fail(r.error); r.readAsDataURL(blob); }),
     async saveAudio() { throw new Error('Озвучка сохраняется только при подключённой базе (Supabase).'); },
   };
 
@@ -107,6 +109,11 @@
       must(await db.from('progress').upsert(Object.assign({ student_id: studentId }, rec), { onConflict: 'student_id,key' }));
     },
     audioUrl: (text) => audioMap[text] || null,
+    async saveImage(blob) {
+      const path = 'img/' + uid() + '.webp';
+      must(await db.storage.from('audio').upload(path, blob, { contentType: 'image/webp' }));
+      return db.storage.from('audio').getPublicUrl(path).data.publicUrl;
+    },
     async saveAudio(text, blob) {
       const ext = blob.type.includes('wav') ? 'wav' : blob.type.includes('ogg') ? 'ogg' : 'mp3';
       const path = sha(text) + '.' + ext;

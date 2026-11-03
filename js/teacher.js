@@ -159,7 +159,7 @@
     const files = h('input', { type: 'file', accept: 'image/*', multiple: true, class: 'field' });
     const aiMsg = h('div', { class: 'hint' });
     const aiBtn = h('button', { class: 'primary', onclick: async () => {
-      if (!MQ.ai.hasKey()) { aiMsg.textContent = 'Сначала добавьте ключ Mistral во вкладке «Настройки».'; return; }
+      if (!MQ.ai.recognizerReady()) { aiMsg.textContent = `Сначала добавьте ключ ${MQ.ai.PROVIDER_NAMES[MQ.ai.settings.provider]} во вкладке «Настройки».`; return; }
       if (!aiText.value.trim() && !files.files.length) { aiMsg.textContent = 'Добавьте текст или фото.'; return; }
       aiBtn.disabled = true; aiMsg.textContent = '✨ Распознаю… (10–30 секунд)';
       try {
@@ -192,12 +192,39 @@
     function renderTable() {
       pasteHelp();
       const c = cols();
+      const words = kind.value === 'words';
       tableBox.replaceChildren(h('table', { class: 'table' },
         h('tr', {}, c.map(([, l]) => h('th', {}, l)), h('th', {})),
         items.map((it, k) => h('tr', {},
-          c.map(([f]) => h('td', {}, h('input', { class: 'cell' + (f === 'pic' ? ' pic' : ''), value: it[f] || '', oninput: (e) => { it[f] = e.target.value; } }))),
-          h('td', {}, h('button', { class: 'chip', title: 'Удалить строку', onclick: () => { items.splice(k, 1); renderTable(); } }, '✕')))),
-      ), h('button', { class: 'chip', style: 'margin-top:8px', onclick: () => { items.push({}); renderTable(); } }, '＋ строка'));
+          c.map(([f]) => h('td', { style: f === 'pic' ? 'white-space:nowrap' : null },
+            f === 'pic' && it.img ? h('img', { class: 'cell-img', src: it.img, alt: '' }) : h('input', { class: 'cell' + (f === 'pic' ? ' pic' : ''), value: it[f] || '', oninput: (e) => { it[f] = e.target.value; } }),
+            f === 'pic' && it.img ? h('button', { class: 'chip', title: 'Убрать картинку (останется эмодзи)', onclick: () => { delete it.img; renderTable(); } }, '✕') : null,
+            f === 'pic' && !it.img ? h('button', { class: 'chip', title: 'Нарисовать картинку (OpenAI)', onclick: (e) => drawOne(it, e.target) }, '🎨') : null)),
+          h('td', {}, h('button', { class: 'chip', title: 'Удалить строку', onclick: () => { items.splice(k, 1); renderTable(); } }, '🗑')))),
+      ), h('div', { class: 'row', style: 'margin-top:8px' },
+        h('button', { class: 'chip', onclick: () => { items.push({}); renderTable(); } }, '＋ строка'),
+        words && items.length ? h('button', { class: 'chip', onclick: (e) => drawAll(e.target) }, '🎨 Нарисовать картинки ко всем словам (OpenAI)') : null),
+      picMsg);
+    }
+    const picMsg = h('div', { class: 'hint' });
+    async function drawOne(it, btn) {
+      if (!it.en) { toast('Сначала впишите слово'); return; }
+      if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+      try { it.img = await store.saveImage(await MQ.ai.drawPicture(it.en, it.ru)); }
+      catch (e) { picMsg.textContent = '⚠️ ' + e.message; if (btn) { btn.disabled = false; btn.textContent = '🎨'; } return false; }
+      renderTable();
+      return true;
+    }
+    async function drawAll(btn) {
+      const todo = items.filter(it => it.en && !it.img);
+      if (!todo.length) { picMsg.textContent = 'У всех слов уже есть картинки.'; return; }
+      if (!confirm(`Нарисовать ${todo.length} картинок через OpenAI? Это платно (примерно 1 цент за картинку) и займёт около ${Math.ceil(todo.length * 15 / 60)} мин.`)) return;
+      btn.disabled = true;
+      for (let i = 0; i < todo.length; i++) {
+        picMsg.textContent = `🎨 Рисую ${i + 1} / ${todo.length}: ${todo[i].en}…`;
+        if (!(await drawOne(todo[i]))) return;
+      }
+      picMsg.textContent = '✅ Картинки готовы. Не забудьте сохранить набор.';
     }
     kind.onchange = () => { if (items.length && !confirm('Сменить тип? Таблица будет очищена.')) { kind.value = kind.value === 'verbs' ? 'words' : 'verbs'; return; } items = []; renderTable(); };
     renderTable();
@@ -212,7 +239,7 @@
       h('div', { class: 'panel' }, h('h2', {}, existing ? '✏️ Набор карточек' : '＋ Новый набор'), h('div', { class: 'row' }, title, kind)),
       h('div', { class: 'panel' },
         h('h2', {}, '✨ Распознать с помощью ИИ'),
-        h('p', { class: 'hint' }, 'Фото страницы учебника, скриншот или текст: ИИ найдёт слова, переведёт и подберёт картинку.'),
+        h('p', { class: 'hint' }, `Фото страницы учебника, скриншот или текст: ИИ найдёт слова, переведёт и подберёт эмодзи. Сейчас работает через ${MQ.ai.PROVIDER_NAMES[MQ.ai.settings.provider]} (меняется в Настройках).`),
         aiText, files, h('div', { class: 'row' }, aiBtn), aiMsg),
       h('details', { class: 'panel' }, h('summary', {}, '📋 Или вставить списком'), paste, h('div', { class: 'row' }, pasteBtn)),
       h('div', { class: 'panel' }, h('h2', {}, '🃏 Карточки'), tableBox),
@@ -221,7 +248,7 @@
       h('div', { class: 'row' },
         h('button', { class: 'primary', onclick: async () => {
           const clean = items.filter(it => kind.value === 'verbs' ? it.base && it.v2 && it.v3 : it.en)
-            .map(it => Object.fromEntries(Object.entries(it).map(([k, v]) => [k, String(v || '').trim()])));
+            .map(it => Object.fromEntries(Object.entries(it).filter(([, v]) => v).map(([k, v]) => [k, String(v).trim()])));
           if (!clean.length) { toast('Добавьте хотя бы одну карточку'); return; }
           try {
             const saved = await store.saveSet({ id: set.id, title: title.value.trim() || 'Words', kind: kind.value, items: clean });
@@ -263,15 +290,38 @@
       refInfo.textContent = '🎙 Образец голоса загружен — нажмите «Проверить голос».';
       refClear.hidden = false;
     };
+    const provider = h('select', { class: 'field' }, Object.entries(MQ.ai.PROVIDER_NAMES).map(([v, l]) => h('option', { value: v }, l)));
+    provider.value = s.provider;
+    const aKey = input({ type: 'password', value: s.anthropicKey, placeholder: 'sk-ant-…' });
+    const aModel = input({ value: s.claudeModel });
+    const oKey = input({ type: 'password', value: s.openaiKey, placeholder: 'sk-…' });
+    const oModel = input({ value: s.openaiModel });
+    const iModel = input({ value: s.imageModel });
+    const cardsMsg = h('div', { class: 'hint' });
     const msg = h('div', { class: 'hint' });
     const audioMsg = h('div', { class: 'hint' });
     const allUnits = Object.values(courses).flatMap(c => c.units);
     app.append(
       h('div', { class: 'panel' },
-        h('h2', {}, '🤖 Mistral AI'),
-        h('p', { class: 'hint' }, 'Ключ хранится только в этом браузере и отправляется только на api.mistral.ai. Ученицам он не нужен.'),
+        h('h2', {}, '✨ ИИ для карточек'),
+        h('p', { class: 'hint' }, 'Ключи хранятся только в этом браузере и отправляются только своему сервису. Ученицам они не нужны.'),
+        h('label', { class: 'lbl' }, 'Кто распознаёт слова (слово — перевод — эмодзи)'), provider,
+        h('label', { class: 'lbl' }, 'Ключ Claude (console.anthropic.com → API Keys)'), aKey,
+        h('label', { class: 'lbl' }, 'Модель Claude'), aModel,
+        h('label', { class: 'lbl' }, 'Ключ OpenAI (platform.openai.com → API keys) — также рисует картинки'), oKey,
+        h('label', { class: 'lbl' }, 'Модель OpenAI для распознавания'), oModel,
+        h('label', { class: 'lbl' }, 'Модель OpenAI для картинок'), iModel,
+        h('p', { class: 'hint' }, 'Для Mistral используется ключ из блока ниже.'),
+        h('div', { class: 'row', style: 'margin-top:12px' },
+          h('button', { class: 'primary', onclick: () => {
+            MQ.ai.saveSettings({ provider: provider.value, anthropicKey: aKey.value.trim(), claudeModel: aModel.value.trim(), openaiKey: oKey.value.trim(), openaiModel: oModel.value.trim(), imageModel: iModel.value.trim() });
+            cardsMsg.textContent = '💾 Сохранено';
+          } }, '💾 Сохранить')),
+        cardsMsg),
+      h('div', { class: 'panel' },
+        h('h2', {}, '🔊 Mistral: озвучка'),
         h('label', { class: 'lbl' }, 'API-ключ'), key,
-        h('label', { class: 'lbl' }, 'Модель для распознавания (с поддержкой фото)'), chat,
+        h('label', { class: 'lbl' }, 'Модель Mistral для распознавания карточек'), chat,
         h('label', { class: 'lbl' }, 'Модель озвучки'), ttsM,
         h('label', { class: 'lbl' }, 'Голос (готовый)'), h('div', { class: 'row', style: 'justify-content:flex-start' }, voice, listVoices), voicesBox,
         h('label', { class: 'lbl' }, 'Или свой образец голоса'), refFile, refInfo, refClear,

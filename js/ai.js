@@ -1,9 +1,17 @@
-// Mistral AI: vocabulary recognition (text or photo -> cards) and text-to-speech.
-// The API key is kept only in this browser (localStorage) and is sent only to api.mistral.ai.
+// AI helpers:
+//  - card recognition (text or photo -> word / translation / emoji): Mistral, Claude (Anthropic) or OpenAI
+//  - picture generation for cards: OpenAI
+//  - text-to-speech: Mistral
+// API keys are kept only in this browser (localStorage) and are sent only to the provider's own API.
 (function () {
   const API = 'https://api.mistral.ai/v1';
   const DEFAULT_VOICE = 'gb_jane_neutral'; // British English preset
-  const defaults = { key: '', chatModel: 'mistral-small-latest', ttsModel: 'voxtral-mini-tts-latest', voice: DEFAULT_VOICE, refAudio: '' };
+  const defaults = {
+    provider: 'mistral',
+    key: '', chatModel: 'mistral-small-latest', ttsModel: 'voxtral-mini-tts-latest', voice: DEFAULT_VOICE, refAudio: '',
+    anthropicKey: '', claudeModel: 'claude-sonnet-5-5',
+    openaiKey: '', openaiModel: 'gpt-4.1-mini', imageModel: 'gpt-image-1',
+  };
   const settings = Object.assign({}, defaults, MQ.load('ai', {}));
   if (!settings.voice) settings.voice = DEFAULT_VOICE;
   const saveSettings = (s) => { Object.assign(settings, s); MQ.save('ai', settings); };
@@ -48,21 +56,86 @@ or for verbs:
     });
   }
 
+  const parseJson = (raw) => {
+    const t = String(raw).trim().replace(/^```(?:json)?\s*/i, '').replace(/```$/, '');
+    return JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1));
+  };
+  async function post(name, url, headers, body) {
+    let res;
+    try { res = await fetch(url, { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, headers), body: JSON.stringify(body) }); }
+    catch (e) { throw new Error(`Не удалось связаться с ${name} (сеть или браузер заблокировал запрос): ${e.message}`); }
+    if (!res.ok) throw new Error(`${name} ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    return res.json();
+  }
+
+  const providers = {
+    async mistral(text, images) {
+      const content = [{ type: 'text', text }];
+      images.forEach(img => content.push({ type: 'image_url', image_url: img }));
+      const res = await call('/chat/completions', { model: settings.chatModel, messages: [{ role: 'user', content }], response_format: { type: 'json_object' }, temperature: 0.2 });
+      const raw = (await res.json()).choices[0].message.content;
+      return typeof raw === 'string' ? raw : raw.map(p => p.text || '').join('');
+    },
+    async anthropic(text, images) {
+      if (!settings.anthropicKey) throw new Error('Нет ключа Claude. Добавьте его в Настройках.');
+      const content = images.map(img => {
+        const [, type, data] = img.match(/^data:([^;]+);base64,(.*)$/);
+        return { type: 'image', source: { type: 'base64', media_type: type, data } };
+      });
+      content.push({ type: 'text', text });
+      const data = await post('Claude', 'https://api.anthropic.com/v1/messages', {
+        'x-api-key': settings.anthropicKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true',
+      }, { model: settings.claudeModel, max_tokens: 4000, messages: [{ role: 'user', content }] });
+      return data.content.filter(c => c.type === 'text').map(c => c.text).join('');
+    },
+    async openai(text, images) {
+      if (!settings.openaiKey) throw new Error('Нет ключа OpenAI. Добавьте его в Настройках.');
+      const content = [{ type: 'text', text }];
+      images.forEach(img => content.push({ type: 'image_url', image_url: { url: img } }));
+      const data = await post('OpenAI', 'https://api.openai.com/v1/chat/completions', { Authorization: 'Bearer ' + settings.openaiKey },
+        { model: settings.openaiModel, messages: [{ role: 'user', content }], response_format: { type: 'json_object' }, temperature: 0.2 });
+      return data.choices[0].message.content;
+    },
+  };
+  const PROVIDER_NAMES = { mistral: 'Mistral', anthropic: 'Claude', openai: 'OpenAI' };
+  const recognizerReady = () => !!(settings.provider === 'anthropic' ? settings.anthropicKey : settings.provider === 'openai' ? settings.openaiKey : settings.key);
+
   async function recognize({ text, files }) {
-    const content = [{ type: 'text', text: PROMPT + (text ? '\n\nMaterial:\n' + text : '') }];
-    for (const f of files || []) content.push({ type: 'image_url', image_url: await fileToDataUrl(f) });
-    const res = await call('/chat/completions', {
-      model: settings.chatModel,
-      messages: [{ role: 'user', content }],
-      response_format: { type: 'json_object' },
-      temperature: 0.2,
-    });
-    const data = await res.json();
-    const raw = data.choices[0].message.content;
-    const json = JSON.parse(typeof raw === 'string' ? raw.replace(/^```(json)?|```$/g, '') : raw.map(p => p.text || '').join(''));
+    const images = [];
+    for (const f of files || []) images.push(await fileToDataUrl(f));
+    const prompt = PROMPT + (text ? '\n\nMaterial:\n' + text : '');
+    const raw = await (providers[settings.provider] || providers.mistral)(prompt, images);
+    const json = parseJson(raw);
     json.kind = json.kind === 'verbs' ? 'verbs' : 'words';
     json.items = (json.items || []).filter(it => json.kind === 'verbs' ? it.base && it.v2 && it.v3 : it.en);
     return json;
+  }
+
+  // ---------- pictures for cards (OpenAI) ----------
+  // Returns a small square WebP blob (about 15-30 KB) ready to store.
+  async function drawPicture(word, ru) {
+    if (!settings.openaiKey) throw new Error('Для картинок нужен ключ OpenAI (Настройки).');
+    const data = await post('OpenAI', 'https://api.openai.com/v1/images/generations', { Authorization: 'Bearer ' + settings.openaiKey }, {
+      model: settings.imageModel, size: '1024x1024', quality: 'low', n: 1,
+      prompt: `A simple, cheerful flat illustration for a children's English vocabulary flashcard showing "${word}"${ru ? ` (meaning: ${ru})` : ''}. One clear subject, centred, bright colours, plain white background, no text, no letters.`,
+    });
+    const item = data.data[0];
+    const src = item.b64_json ? 'data:image/png;base64,' + item.b64_json : item.url;
+    return shrink(src, 320);
+  }
+  function shrink(src, size) {
+    return new Promise((ok, fail) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        c.width = c.height = size;
+        c.getContext('2d').drawImage(img, 0, 0, size, size);
+        c.toBlob(b => b ? ok(b) : fail(new Error('Не удалось сжать картинку')), 'image/webp', 0.8);
+      };
+      img.onerror = () => fail(new Error('Не удалось загрузить картинку'));
+      img.src = src;
+    });
   }
 
   // ---------- text to speech ----------
@@ -108,5 +181,5 @@ or for verbs:
   // Voice sample file -> base64 (without the data: prefix)
   async function fileToBase64(file) { return (await fileToDataUrl(file)).replace(/^data:[^,]+,/, ''); }
 
-  MQ.ai = { settings, saveSettings, hasKey: () => !!settings.key, recognize, tts, voices, fileToBase64, DEFAULT_VOICE };
+  MQ.ai = { settings, saveSettings, hasKey: () => !!settings.key, recognizerReady, PROVIDER_NAMES, recognize, drawPicture, tts, voices, fileToBase64, DEFAULT_VOICE };
 })();

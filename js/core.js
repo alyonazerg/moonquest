@@ -94,5 +94,11 @@ window.MQ = (function () {
     if ('speechSynthesis' in window) speechSynthesis.cancel();
   }
 
-  return { courses, addUnit, load, save, h, shuffle, sample, norm, starsFor, uid, toast, speak, stopSpeech };
+  // Card picture: generated image if there is one, otherwise the emoji
+  function pic(it, cls = 'emoji') {
+    if (it.img) return h('img', { class: 'pic-img ' + cls, src: it.img, alt: it.en || '' });
+    return it.pic ? h('div', { class: cls }, it.pic) : null;
+  }
+
+  return { pic, courses, addUnit, load, save, h, shuffle, sample, norm, starsFor, uid, toast, speak, stopSpeech };
 })();
