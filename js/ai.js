@@ -2,19 +2,19 @@
 // The API key is kept only in this browser (localStorage) and is sent only to api.mistral.ai.
 (function () {
   const API = 'https://api.mistral.ai/v1';
-  const defaults = { key: '', chatModel: 'mistral-small-latest', ttsModel: 'voxtral-mini-tts-latest', voice: '' };
+  const DEFAULT_VOICE = 'gb_jane_neutral'; // British English preset
+  const defaults = { key: '', chatModel: 'mistral-small-latest', ttsModel: 'voxtral-mini-tts-latest', voice: DEFAULT_VOICE, refAudio: '' };
   const settings = Object.assign({}, defaults, MQ.load('ai', {}));
+  if (!settings.voice) settings.voice = DEFAULT_VOICE;
   const saveSettings = (s) => { Object.assign(settings, s); MQ.save('ai', settings); };
 
   async function call(path, body) {
     if (!settings.key) throw new Error('Нет ключа Mistral. Добавьте его в кабинете учителя → Настройки.');
     let res;
     try {
-      res = await fetch(API + path, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + settings.key },
-        body: JSON.stringify(body),
-      });
+      res = await fetch(API + path, body === undefined
+        ? { headers: { Authorization: 'Bearer ' + settings.key } }
+        : { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + settings.key }, body: JSON.stringify(body) });
     } catch (e) {
       throw new Error('Не удалось связаться с Mistral (сеть или браузер заблокировал запрос): ' + e.message);
     }
@@ -81,7 +81,9 @@ or for verbs:
   }
   async function tts(text) {
     const body = { model: settings.ttsModel, input: text, response_format: 'mp3' };
-    if (settings.voice) body.voice = settings.voice;
+    // a voice sample (cloning) wins over a preset voice
+    if (settings.refAudio) body.ref_audio = settings.refAudio;
+    else body.voice = settings.voice || DEFAULT_VOICE;
     const res = await call('/audio/speech', body);
     const type = res.headers.get('content-type') || '';
     let bytes;
@@ -95,5 +97,16 @@ or for verbs:
     return new Blob([bytes], { type: sniff(bytes) });
   }
 
-  MQ.ai = { settings, saveSettings, hasKey: () => !!settings.key, recognize, tts };
+  // List of voices (preset + saved in the workspace)
+  async function voices() {
+    const res = await call('/audio/voices?limit=100');
+    const data = await res.json();
+    const list = Array.isArray(data) ? data : data.items || data.data || data.voices || [];
+    return list.map(v => ({ id: v.id || v.voice_id || v.slug || v.name, name: v.name || v.id, lang: v.language || v.languages || v.locale || '', type: v.type || '' }));
+  }
+
+  // Voice sample file -> base64 (without the data: prefix)
+  async function fileToBase64(file) { return (await fileToDataUrl(file)).replace(/^data:[^,]+,/, ''); }
+
+  MQ.ai = { settings, saveSettings, hasKey: () => !!settings.key, recognize, tts, voices, fileToBase64, DEFAULT_VOICE };
 })();

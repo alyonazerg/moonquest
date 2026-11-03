@@ -242,7 +242,27 @@
     const key = input({ type: 'password', value: s.key, placeholder: 'API-ключ Mistral' });
     const chat = input({ value: s.chatModel });
     const ttsM = input({ value: s.ttsModel });
-    const voice = input({ value: s.voice, placeholder: 'id голоса (необязательно)' });
+    const voice = input({ value: s.voice, placeholder: MQ.ai.DEFAULT_VOICE });
+    const voicesBox = h('div', { class: 'hint' });
+    const listVoices = h('button', { class: 'chip', onclick: async () => {
+      MQ.ai.saveSettings({ key: key.value.trim() });
+      voicesBox.textContent = 'Загружаю…';
+      try {
+        const vs = await MQ.ai.voices();
+        voicesBox.replaceChildren(...(vs.length ? vs.map(v => h('button', { class: 'chip', style: 'margin:3px', onclick: () => { voice.value = v.id; } }, `${v.name}${v.lang ? ' · ' + v.lang : ''}`)) : [document.createTextNode('Список пуст')]));
+      } catch (e) { voicesBox.textContent = '⚠️ ' + e.message; }
+    } }, '📋 Показать голоса');
+    const refFile = h('input', { type: 'file', accept: 'audio/*', class: 'field' });
+    const refInfo = h('div', { class: 'hint' }, s.refAudio ? '🎙 Образец голоса загружен — озвучка будет этим голосом.' : 'Можно загрузить свою запись (5–15 секунд, mp3 или wav): Mistral будет говорить этим голосом.');
+    const refClear = h('button', { class: 'chip', hidden: !s.refAudio, onclick: () => { MQ.ai.saveSettings({ refAudio: '' }); refInfo.textContent = 'Образец удалён, используется голос из списка.'; refClear.hidden = true; } }, '✕ Убрать образец');
+    refFile.onchange = async () => {
+      const f = refFile.files[0];
+      if (!f) return;
+      if (f.size > 2_000_000) { refInfo.textContent = '⚠️ Файл больше 2 МБ — возьмите запись покороче.'; return; }
+      MQ.ai.saveSettings({ refAudio: await MQ.ai.fileToBase64(f) });
+      refInfo.textContent = '🎙 Образец голоса загружен — нажмите «Проверить голос».';
+      refClear.hidden = false;
+    };
     const msg = h('div', { class: 'hint' });
     const audioMsg = h('div', { class: 'hint' });
     const allUnits = Object.values(courses).flatMap(c => c.units);
@@ -253,7 +273,8 @@
         h('label', { class: 'lbl' }, 'API-ключ'), key,
         h('label', { class: 'lbl' }, 'Модель для распознавания (с поддержкой фото)'), chat,
         h('label', { class: 'lbl' }, 'Модель озвучки'), ttsM,
-        h('label', { class: 'lbl' }, 'Голос'), voice,
+        h('label', { class: 'lbl' }, 'Голос (готовый)'), h('div', { class: 'row', style: 'justify-content:flex-start' }, voice, listVoices), voicesBox,
+        h('label', { class: 'lbl' }, 'Или свой образец голоса'), refFile, refInfo, refClear,
         h('div', { class: 'row', style: 'margin-top:12px' },
           h('button', { class: 'primary', onclick: () => { MQ.ai.saveSettings({ key: key.value.trim(), chatModel: chat.value.trim(), ttsModel: ttsM.value.trim(), voice: voice.value.trim() }); msg.textContent = '💾 Сохранено'; } }, '💾 Сохранить'),
           h('button', { onclick: async () => {
