@@ -601,3 +601,27 @@ body.theme-magic .st-card { background: linear-gradient(150deg, #7a2f6e, #3a1f4a
 .vpr-sel.right { border-color: #22b878; background: #dfffee; }
 .vpr-sel.wrong { border-color: #e3405b; background: #ffe3e8; }
 .vpr-script { margin-top: 10px; }
+
+/* ВПР 2027 format */
+.vpr-qbox { margin: 10px 0 14px; }
+.vpr-answer { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; justify-content: center; margin-top: 10px; font-weight: 800; }
+.vpr-cell { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; min-width: 2.2em; padding: 2px 6px; border-radius: 8px; background: rgba(255, 255, 255, .92); color: #1b1b3a; }
+.vpr-cell small { font-size: .55em; color: #7b5cff; }
+.vpr-gaps td { padding: 4px 8px; }
+.vpr-form td:first-child { width: 45%; }
+.cell.right { border-color: #22b878; background: #dfffee; }
+.cell.wrong { border-color: #e3405b; background: #ffe3e8; }
+.cell.soft { border-color: #f0a800; background: #fff6d6; }
+.vpr-fix { font-size: .75em; color: var(--accent); margin-top: 2px; }
+.vpr-mark { display: inline-block; font-size: 1.6em; font-weight: 900; padding: .2em .8em; border-radius: 16px; margin: 4px 0 10px; }
+.vpr-mark.m5 { background: linear-gradient(180deg, #8dffc8, #22b878); color: #03341f; }
+.vpr-mark.m4 { background: linear-gradient(180deg, #8fe3ff, #2e8ff0); color: #021f3d; }
+.vpr-mark.m3 { background: linear-gradient(180deg, #ffe680, #ffc233); color: #2a1a00; }
+.vpr-mark.m2 { background: linear-gradient(180deg, #ff9aac, #e3405b); }
+.vpr .panel { text-align: center; }
+.vpr .vpr-task { text-align: left; }
+/* checked form fields: dark text on light colours */
+.vpr-form .cell { color: #1b1b3a; background: #fff; -webkit-text-fill-color: #1b1b3a; opacity: 1; }
+.vpr-form .cell.right { background: #dfffee; }
+.vpr-form .cell.wrong { background: #ffe3e8; }
+.vpr-form .cell.soft { background: #fff6d6; }
