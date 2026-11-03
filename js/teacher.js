@@ -69,6 +69,8 @@
   async function studentsScreen(app) {
     header(app, 'students');
     const [students, assigns] = await Promise.all([store.students(), store.assignments()]);
+    // every student gets a personal code
+    for (const st of students) if (!st.pin) { st.pin = store.newPin(); await store.saveStudent(st); }
     const name = input({ placeholder: 'Имя ученицы' });
     const course = h('select', { class: 'field' }, Object.entries(COURSE_NAMES).map(([v, l]) => h('option', { value: v }, l)));
     app.append(
@@ -77,13 +79,14 @@
         h('div', { class: 'row' }, name, course,
           h('button', { class: 'primary', onclick: async () => {
             if (!name.value.trim()) return;
-            await store.saveStudent({ name: name.value.trim(), course: course.value });
+            await store.saveStudent({ name: name.value.trim(), course: course.value, pin: store.newPin() });
             MQ.route();
           } }, '＋ Добавить'))),
       students.length ? h('div', { class: 'grid' }, students.map(s => h('a', { class: 'tile', href: `#/teacher/st/${s.id}` },
         h('div', { class: 'big' }, '👧'),
         h('div', { class: 'title' }, s.name),
         h('div', { class: 'muted' }, COURSE_NAMES[s.course || '']),
+        h('div', { class: 'muted' }, '🔑 Код: ' + (s.pin || '—')),
         h('div', { class: 'muted' }, `Наборов назначено: ${assigns.filter(a => a.student_id === s.id).length}`)))) : h('p', { class: 'muted' }, 'Пока нет учениц.'),
     );
   }
@@ -96,6 +99,12 @@
     const setsById = Object.fromEntries(sets.map(x => [x.id, x]));
     const mine = new Set(assigns.filter(a => a.student_id === id).map(a => a.set_id));
     const nameF = input({ value: s.name });
+    const pinF = input({ value: s.pin || '', placeholder: 'Код', inputmode: 'numeric', maxlength: 8, style: 'width:7em;min-width:0' });
+    const link = `${location.href.split('#')[0]}#/login/${s.id}/${encodeURIComponent(s.pin || '')}`;
+    const linkBtn = h('button', { onclick: async () => {
+      try { await navigator.clipboard.writeText(link); linkBtn.textContent = '✅ Ссылка скопирована'; }
+      catch (e) { window.prompt('Скопируйте ссылку:', link); }
+    } }, '🔗 Скопировать личную ссылку');
     const course = h('select', { class: 'field' }, Object.entries(COURSE_NAMES).map(([v, l]) => h('option', { value: v }, l)));
     course.value = s.course || '';
     const rows = progress.slice().sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)));
@@ -103,9 +112,11 @@
       h('a', { href: '#/teacher', class: 'muted' }, '← Все ученицы'),
       h('div', { class: 'panel' },
         h('h2', {}, '👧 ' + s.name),
-        h('div', { class: 'row' }, nameF, course,
-          h('button', { class: 'primary', onclick: async () => { await store.saveStudent({ id, name: nameF.value.trim() || s.name, course: course.value }); toast('Сохранено'); MQ.route(); } }, '💾 Сохранить'),
-          h('button', { class: 'ghost', onclick: async () => { if (confirm(`Удалить ${s.name} и весь её прогресс?`)) { await store.deleteStudent(id); location.hash = '#/teacher'; } } }, '🗑 Удалить'))),
+        h('div', { class: 'row' }, nameF, course, h('span', {}, '🔑'), pinF,
+          h('button', { class: 'primary', onclick: async () => { await store.saveStudent({ id, name: nameF.value.trim() || s.name, course: course.value, pin: pinF.value.trim() || s.pin }); toast('Сохранено'); MQ.route(); } }, '💾 Сохранить'),
+          h('button', { class: 'ghost', onclick: async () => { if (confirm(`Удалить ${s.name} и весь её прогресс?`)) { await store.deleteStudent(id); location.hash = '#/teacher'; } } }, '🗑 Удалить')),
+        h('p', { class: 'hint' }, `Чтобы войти, ${s.name} выбирает своё имя и вводит код ${s.pin || ''}. Или отправьте ей личную ссылку — она откроет сайт сразу под её именем.`),
+        h('div', { class: 'row' }, linkBtn)),
       h('div', { class: 'panel' },
         h('h2', {}, '🗂 Назначенные наборы'),
         sets.length ? sets.map(set => {

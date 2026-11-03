@@ -1,39 +1,84 @@
-// Starry sky background: twinkling stars on a canvas behind the page.
+// Space background: twinkling stars, glowing planets and shooting stars on a canvas behind the page.
 (function () {
   const c = document.createElement('canvas');
   c.id = 'sky';
   document.body.prepend(c);
   const ctx = c.getContext('2d');
   const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let stars = [], w = 0, h = 0, dpr = 1;
+  let stars = [], planets = [], meteors = [], w = 0, h = 0;
+
   function resize() {
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     w = window.innerWidth; h = window.innerHeight;
     c.width = w * dpr; c.height = h * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const n = Math.round(w * h / 2500);
-    stars = Array.from({ length: n }, () => ({
+    stars = Array.from({ length: Math.round(w * h / 2200) }, () => ({
       x: Math.random() * w, y: Math.random() * h,
-      r: Math.random() < 0.08 ? 1.6 + Math.random() : 0.4 + Math.random() * 0.9,
-      p: Math.random() * Math.PI * 2, s: 0.5 + Math.random() * 1.5,
-      tint: Math.random() < 0.15 ? '#ffe9a8' : Math.random() < 0.15 ? '#bcd7ff' : '#ffffff',
+      r: Math.random() < 0.07 ? 1.5 + Math.random() * 1.1 : 0.35 + Math.random() * 0.9,
+      p: Math.random() * Math.PI * 2, s: 0.5 + Math.random() * 1.6,
+      tint: Math.random() < 0.15 ? '#ffe9a8' : Math.random() < 0.18 ? '#bfe3ff' : '#ffffff',
     }));
+    const m = Math.min(w, h);
+    planets = [
+      { x: w * 0.9, y: h * 0.16, r: m * 0.075, a: '#ffb36b', b: '#c2416b', ring: true, drift: 0.6 },
+      { x: w * 0.07, y: h * 0.82, r: m * 0.11, a: '#7fe3ff', b: '#3a3fb8', ring: false, drift: 0.4 },
+      { x: w * 0.18, y: h * 0.1, r: m * 0.028, a: '#e0d4ff', b: '#7b5cff', ring: false, drift: 0.9 },
+    ];
   }
+
+  function planet(p, t) {
+    const y = p.y + (still ? 0 : Math.sin(t * 0.0003 * p.drift) * 6);
+    // glow
+    const g = ctx.createRadialGradient(p.x, y, p.r * 0.6, p.x, y, p.r * 2.4);
+    g.addColorStop(0, p.a + '55'); g.addColorStop(1, p.a + '00');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, y, p.r * 2.4, 0, Math.PI * 2); ctx.fill();
+    // back half of the ring
+    if (p.ring) ring(p, y, Math.PI, Math.PI * 2);
+    // body with light from the top-left
+    const body = ctx.createRadialGradient(p.x - p.r * 0.4, y - p.r * 0.45, p.r * 0.1, p.x, y, p.r);
+    body.addColorStop(0, '#ffffff'); body.addColorStop(0.18, p.a); body.addColorStop(1, p.b);
+    ctx.fillStyle = body; ctx.beginPath(); ctx.arc(p.x, y, p.r, 0, Math.PI * 2); ctx.fill();
+    // night side
+    const shade = ctx.createLinearGradient(p.x - p.r, y - p.r, p.x + p.r, y + p.r);
+    shade.addColorStop(0.45, 'rgba(10,5,40,0)'); shade.addColorStop(1, 'rgba(10,5,40,.55)');
+    ctx.fillStyle = shade; ctx.beginPath(); ctx.arc(p.x, y, p.r, 0, Math.PI * 2); ctx.fill();
+    if (p.ring) ring(p, y, 0, Math.PI);
+  }
+  function ring(p, y, from, to) {
+    ctx.save();
+    ctx.translate(p.x, y); ctx.rotate(-0.35);
+    ctx.strokeStyle = 'rgba(255, 225, 190, .55)'; ctx.lineWidth = p.r * 0.14;
+    ctx.beginPath(); ctx.ellipse(0, 0, p.r * 1.75, p.r * 0.45, 0, from, to); ctx.stroke();
+    ctx.restore();
+  }
+
   function draw(t) {
     ctx.clearRect(0, 0, w, h);
     for (const s of stars) {
-      const a = still ? 0.8 : 0.45 + 0.55 * Math.abs(Math.sin(s.p + t * 0.001 * s.s));
-      ctx.globalAlpha = a;
-      ctx.fillStyle = s.tint;
+      const a = still ? 0.8 : 0.4 + 0.6 * Math.abs(Math.sin(s.p + t * 0.001 * s.s));
+      ctx.globalAlpha = a; ctx.fillStyle = s.tint;
       ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
-      if (s.r > 1.5) { // little sparkle for big stars
+      if (s.r > 1.4) {
         ctx.globalAlpha = a * 0.35;
-        ctx.fillRect(s.x - s.r * 3, s.y - 0.3, s.r * 6, 0.6);
-        ctx.fillRect(s.x - 0.3, s.y - s.r * 3, 0.6, s.r * 6);
+        ctx.fillRect(s.x - s.r * 3.2, s.y - 0.3, s.r * 6.4, 0.6);
+        ctx.fillRect(s.x - 0.3, s.y - s.r * 3.2, 0.6, s.r * 6.4);
       }
     }
     ctx.globalAlpha = 1;
-    if (!still) requestAnimationFrame(draw);
+    planets.forEach(p => planet(p, t));
+    if (!still) {
+      if (Math.random() < 0.004 && meteors.length < 2) meteors.push({ x: Math.random() * w * 0.8 + w * 0.2, y: Math.random() * h * 0.4, life: 1 });
+      meteors = meteors.filter(m => m.life > 0);
+      for (const m of meteors) {
+        const len = 140;
+        const grad = ctx.createLinearGradient(m.x, m.y, m.x + len, m.y - len * 0.45);
+        grad.addColorStop(0, `rgba(255,255,255,${m.life})`); grad.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.strokeStyle = grad; ctx.lineWidth = 2; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(m.x + len, m.y - len * 0.45); ctx.stroke();
+        m.x -= 9; m.y += 4; m.life -= 0.018;
+      }
+      requestAnimationFrame(draw);
+    }
   }
   window.addEventListener('resize', () => { resize(); if (still) draw(0); });
   resize();

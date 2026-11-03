@@ -54,6 +54,14 @@ create policy "teacher all progress" on progress for all to authenticated using 
 create policy "teacher all audio" on audio for all to authenticated using (true) with check (true);
 
 create policy "read students" on students for select to anon using (true);
+-- students see names only; PIN codes stay with the teacher
+alter table students add column if not exists pin text;
+revoke select on students from anon;
+grant select (id, name, course, created_at) on students to anon;
+create or replace function student_login(sid uuid, p text) returns boolean
+  language sql security definer set search_path = public
+  as $$ select exists (select 1 from students where id = sid and pin = p) $$;
+grant execute on function student_login(uuid, text) to anon;
 create policy "read sets" on sets for select to anon using (true);
 create policy "read assignments" on assignments for select to anon using (true);
 create policy "read audio" on audio for select to anon using (true);

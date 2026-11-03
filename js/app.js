@@ -21,13 +21,34 @@
   // ---------- screens ----------
   async function whoScreen() {
     const students = await store.students();
-    const pick = async (s) => { await store.setMe(s); location.hash = '#/'; };
+    const enter = async (s) => { await store.setMe({ id: s.id, name: s.name, course: s.course }); location.hash = '#/'; };
+    // Ask for the personal code before entering
+    const pick = (s) => {
+      if (store.mode === 'local' && !s.pin) return enter(s);
+      const code = h('input', { class: 'field big-field', type: 'password', inputmode: 'numeric', autocomplete: 'off', maxlength: 8, placeholder: '• • • •' });
+      const msg = h('div', { class: 'feedback bad' });
+      const go = async () => {
+        msg.textContent = '';
+        try { if (await store.checkPin(s.id, code.value)) return enter(s); msg.textContent = 'Wrong code. Try again or ask your teacher.'; }
+        catch (e) { msg.textContent = '⚠️ ' + e.message; }
+        code.value = ''; code.focus();
+      };
+      code.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+      app.innerHTML = '';
+      app.append(
+        h('div', { class: 'emoji' }, '🔐'),
+        h('h1', {}, `Hi, ${s.name}!`),
+        h('div', { class: 'panel narrow' }, h('p', {}, 'Enter your secret code:'), code, msg,
+          h('div', { class: 'row' }, h('a', { class: 'btn ghost', href: '#/who', onclick: (e) => { e.preventDefault(); MQ.route(); } }, '← Back'), h('button', { class: 'primary', onclick: go }, "Let's go! 🚀"))),
+      );
+      setTimeout(() => code.focus(), 50);
+    };
     const nameInput = h('input', { class: 'field big-field', placeholder: 'Your name', maxlength: 30 });
     const addSelf = async () => {
       const name = nameInput.value.trim();
       if (!name) return;
       const existing = students.find(s => s.name.toLowerCase() === name.toLowerCase());
-      pick(existing || await store.saveStudent({ name }));
+      if (existing) pick(existing); else enter(await store.saveStudent({ name }));
     };
     nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addSelf(); });
     app.append(
@@ -145,6 +166,13 @@
     if (gid && games[gid]) play(SETS, u, gid); else unit(SETS, u);
   }
 
+  // Personal link from the teacher: #/login/<student id>/<code>
+  async function loginLink(id, pin) {
+    const s = (await store.students()).find(x => x.id === id);
+    if (s && await store.checkPin(id, pin)) { await store.setMe({ id: s.id, name: s.name, course: s.course }); location.replace('#/'); return; }
+    location.replace('#/who');
+  }
+
   // ---------- router ----------
   let seq = 0;
   async function route() {
@@ -155,7 +183,8 @@
     const parts = (location.hash || '#/').split('/');
     try {
       const [, top, a, b, c3] = parts;
-      if (top === 'who') await whoScreen();
+      if (top === 'who') { await store.setMe(null); renderWho(); await whoScreen(); }
+      else if (top === 'login' && a) await loginLink(a, decodeURIComponent(b || ''));
       else if (top === 'teacher') await MQ.teacher.route(app, parts);
       else if (top === 's' && a) await setRoute(a, b);
       else if (top === 'c' && courses[a]) {

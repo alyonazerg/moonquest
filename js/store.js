@@ -20,6 +20,7 @@
     async signIn() { return true; },
     async signOut() {},
     async students() { return load('students', []); },
+    async checkPin(id, pin) { const s = load('students', []).find(x => x.id === id); return !!s && (!s.pin || s.pin === String(pin).trim()); },
     async saveStudent(s) {
       const all = load('students', []);
       if (!s.id) s.id = uid();
@@ -84,9 +85,12 @@
     isTeacher: () => !!session,
     async signIn(email, password) { must(await db.auth.signInWithPassword({ email, password })); return true; },
     async signOut() { await db.auth.signOut(); },
-    async students() { return must(await db.from('students').select('*').order('name')); },
+    // Students (not signed in) can see only names; PIN codes are visible to the teacher only.
+    async students() { return must(await db.from('students').select(session ? '*' : 'id,name,course').order('name')); },
+    async checkPin(id, pin) { return !!must(await db.rpc('student_login', { sid: id, p: String(pin).trim() })); },
     async saveStudent(s) {
       const row = { name: s.name, course: s.course || null };
+      if (s.pin !== undefined) row.pin = s.pin;
       if (s.id) return must(await db.from('students').update(row).eq('id', s.id).select().single());
       return must(await db.from('students').insert(row).select().single());
     },
@@ -124,6 +128,7 @@
   };
 
   const store = cloudReady ? cloud : local;
+  store.newPin = () => String(Math.floor(1000 + Math.random() * 9000));
 
   // ---------------- current student + progress cache ----------------
   let progressCache = {};
