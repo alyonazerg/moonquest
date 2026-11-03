@@ -1,76 +1,98 @@
-// Moonquest app: routing and screens.
+// Moonquest app: routing and student screens.
 (function () {
-  const { h, courses, games, settings } = MQ;
-  Object.values(courses).forEach(c => { c.href = `#/c/${c.id}`; });
+  const { h, courses, games, store } = MQ;
   const app = document.getElementById('app');
-  const zoomBtn = document.getElementById('zoomToggle');
-
-  function applyZoom() {
-    document.body.classList.toggle('zoom', settings.zoom);
-    zoomBtn.classList.toggle('on', settings.zoom);
-    zoomBtn.textContent = '🎥 Zoom lesson: ' + (settings.zoom ? 'on' : 'off');
-  }
-  zoomBtn.onclick = () => { settings.zoom = !settings.zoom; MQ.saveSettings(); applyZoom(); route(); };
-  applyZoom();
+  const who = document.getElementById('who');
 
   const starStr = (n, max = 3) => '★'.repeat(n) + '☆'.repeat(max - n);
   const gameIds = (unit) => Object.keys(games).filter(id => games[id].available(unit));
-  const unitStars = (c, unit) => gameIds(unit).reduce((s, g) => s + MQ.getStars(c, unit.id, g), 0);
+  // "c" is a course, or the pseudo-course of teacher-made sets
+  const SETS = { id: 'sets', title: 'My tasks', icon: '🗂', href: '#/s', key: (u, g) => `set:${u.id}/${g}` };
+  Object.values(courses).forEach(c => { c.key = (u, g) => `${c.id}/${u.id}/${g}`; });
+  const unitStars = (c, u) => gameIds(u).reduce((s, g) => s + store.getStars(c.key(u, g)), 0);
+
+  function renderWho() {
+    who.innerHTML = '';
+    who.append(
+      store.me ? h('a', { class: 'btn chip', href: '#/who', title: 'Change player' }, '👤 ' + store.me.name) : null,
+      h('a', { class: 'btn chip', href: '#/teacher', title: 'Teacher' }, '👩‍🏫'));
+  }
 
   // ---------- screens ----------
-  function home() {
+  async function whoScreen() {
+    const students = await store.students();
+    const pick = async (s) => { await store.setMe(s); location.hash = '#/'; };
+    const nameInput = h('input', { class: 'field big-field', placeholder: 'Your name', maxlength: 30 });
+    const addSelf = async () => {
+      const name = nameInput.value.trim();
+      if (!name) return;
+      const existing = students.find(s => s.name.toLowerCase() === name.toLowerCase());
+      pick(existing || await store.saveStudent({ name }));
+    };
+    nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addSelf(); });
     app.append(
-      h('h1', {}, 'Hello, space explorer! 👋'),
-      h('p', { class: 'muted' }, 'Choose your rocket.'),
-      h('div', { class: 'grid' }, Object.values(courses).map(c => {
-        const max = c.units.reduce((s, u) => s + gameIds(u).length * 3, 0);
-        const got = c.units.reduce((s, u) => s + unitStars(c.id, u), 0);
-        return h('a', { class: 'tile', href: `#/c/${c.id}` },
-          h('div', { class: 'big' }, c.icon),
-          h('div', { class: 'title' }, c.title),
-          h('div', { class: 'muted' }, c.who),
-          h('div', { class: 'stars' }, `★ ${got} / ${max}`));
-      }),
-      h('a', { class: 'tile', href: '#/lists' },
-        h('div', { class: 'big' }, '✍️'),
-        h('div', { class: 'title' }, 'My lists'),
-        h('div', { class: 'muted' }, 'Свои списки слов и глаголов'),
-        h('div', { class: 'muted' }, `Lists: ${MQ.lists.count()}`))),
+      h('div', { class: 'emoji' }, '👩‍🚀'),
+      h('h1', {}, "Who's playing?"),
+      students.length ? h('div', { class: 'grid names' }, students.map(s =>
+        h('button', { class: 'tile name-btn', onclick: () => pick(s) }, h('div', { class: 'big' }, '🧑‍🚀'), h('div', { class: 'title' }, s.name)))) : null,
+      store.mode === 'local'
+        ? h('div', { class: 'panel narrow' }, h('p', {}, students.length ? 'New here? Write your name:' : 'What is your name?'), nameInput, h('button', { class: 'primary', onclick: addSelf }, "Let's go! 🚀"))
+        : (students.length ? null : h('p', { class: 'muted' }, 'Ask your teacher to add your name.')),
+    );
+  }
+
+  async function home() {
+    if (!store.me) { location.replace('#/who'); return; }
+    const [sets, assigns] = await Promise.all([store.sets(), store.assignments()]);
+    const mine = new Set(assigns.filter(a => a.student_id === store.me.id).map(a => a.set_id));
+    const tasks = sets.filter(s => mine.has(s.id));
+    const myCourses = store.me.course && courses[store.me.course] ? [courses[store.me.course]] : Object.values(courses);
+    app.append(
+      h('h1', {}, `Hello, ${store.me.name}! 👋`),
+      tasks.length ? h('h2', {}, '🗂 My tasks') : null,
+      tasks.length ? h('div', { class: 'grid' }, tasks.map(s => {
+        const u = MQ.sets.setToUnit(s);
+        return h('a', { class: 'tile', href: `#/s/${s.id}` },
+          h('div', { class: 'big' }, u.icon), h('div', { class: 'title' }, s.title), h('div', { class: 'muted' }, u.subtitle),
+          h('div', { class: 'stars' }, `★ ${unitStars(SETS, u)} / ${gameIds(u).length * 3}`));
+      })) : null,
+      h('h2', {}, '🪐 My planets'),
+      h('div', { class: 'grid' }, myCourses.flatMap(c => c.units.map(u =>
+        h('a', { class: 'tile', href: `${c.href}/${u.id}` },
+          h('div', { class: 'big' }, u.icon || '🪐'),
+          h('div', { class: 'title' }, u.title),
+          h('div', { class: 'muted' }, c.title),
+          h('div', { class: 'stars' }, `★ ${unitStars(c, u)} / ${gameIds(u).length * 3}`))))),
     );
   }
 
   function course(c) {
     app.append(
-      h('a', { href: '#/', class: 'muted' }, '← Home'),
+      h('a', { href: '#/', class: 'back' }, '← Home'),
       h('h1', {}, `${c.icon} ${c.title}`),
-      h('p', { class: 'muted' }, 'Choose a planet.'),
-      h('div', { class: 'grid' }, c.units.map(u => {
-        const max = gameIds(u).length * 3;
-        return h('a', { class: 'tile', href: `#/c/${c.id}/${u.id}` },
-          h('div', { class: 'big' }, u.icon || '🪐'),
-          h('div', { class: 'title' }, u.title, ' ', u.demo ? h('span', { class: 'badge' }, 'demo') : null),
-          h('div', { class: 'muted' }, u.subtitle || ''),
-          h('div', { class: 'stars' }, `★ ${unitStars(c.id, u)} / ${max}`));
-      })),
+      h('div', { class: 'grid' }, c.units.map(u => h('a', { class: 'tile', href: `${c.href}/${u.id}` },
+        h('div', { class: 'big' }, u.icon || '🪐'),
+        h('div', { class: 'title' }, u.title),
+        h('div', { class: 'muted' }, u.subtitle || ''),
+        h('div', { class: 'stars' }, `★ ${unitStars(c, u)} / ${gameIds(u).length * 3}`)))),
     );
   }
 
   function unit(c, u) {
     app.append(
-      h('a', { href: c.href, class: 'muted' }, '← ' + c.title),
+      h('a', { href: c === SETS ? '#/' : '#/', class: 'back' }, '← Home'),
       h('h1', {}, `${u.icon || '🪐'} ${u.title}`),
       h('p', { class: 'muted' }, u.subtitle || ''),
-      u.demo ? h('p', { class: 'hint' }, 'Демо-содержание: будет заменено материалами учебника.') : null,
-      (u.grammar || []).length ? h('div', { class: 'panel' },
+      (u.grammar || []).length ? h('div', { class: 'panel left' },
         h('h2', {}, '📘 Grammar'),
-        u.grammar.map((g, k) => h('div', { class: 'row space', style: 'border-top:1px solid #ffffff22;padding:8px 0;flex-wrap:nowrap' },
-          h('div', { style: 'text-align:left' }, h('b', {}, g.title), h('div', { class: 'muted' }, g.rule)),
+        u.grammar.map((g, k) => h('div', { class: 'topic' },
+          h('div', {}, h('b', {}, g.title), h('div', { class: 'muted' }, g.rule)),
           h('button', { class: 'chip', onclick: () => play(c, u, 'quiz', MQ.shuffle(MQ.grammarItems(u, k)), g.title) }, '▶ Practise')))) : null,
       (u.verbs || []).length ? h('details', { class: 'panel' },
         h('summary', {}, '📋 Verb table'),
-        h('table', { style: 'width:100%;margin-top:10px;border-collapse:collapse' },
-          h('tr', { class: 'muted' }, h('th', { align: 'left' }, 'V1'), h('th', { align: 'left' }, 'V2'), h('th', { align: 'left' }, 'V3'), h('th', { align: 'left' }, '')),
-          u.verbs.map(v => h('tr', { style: 'border-top:1px solid #ffffff22' },
+        h('table', { class: 'table' },
+          h('tr', {}, h('th', {}, 'V1'), h('th', {}, 'V2'), h('th', {}, 'V3'), h('th', {})),
+          u.verbs.map(v => h('tr', {},
             h('td', {}, v.base), h('td', {}, v.v2), h('td', {}, v.v3),
             h('td', {}, h('button', { class: 'chip', onclick: () => MQ.speak(`${v.base}, ${v.v2}, ${v.v3}`) }, '🔊')))))) : null,
       h('div', { class: 'grid' }, gameIds(u).map(id => {
@@ -79,7 +101,7 @@
           h('div', { class: 'big' }, g.icon),
           h('div', { class: 'title' }, g.title),
           h('div', { class: 'muted' }, g.desc),
-          h('div', { class: 'stars' }, starStr(MQ.getStars(c.id, u.id, id))));
+          h('div', { class: 'stars' }, starStr(store.getStars(c.key(u, id)))));
       })),
     );
   }
@@ -87,78 +109,80 @@
   function play(c, u, gameId, itemsOverride, label) {
     const g = games[gameId];
     app.innerHTML = '';
+    window.scrollTo(0, 0);
     const root = h('div');
-    // two-player score for Zoom lessons
-    const players = settings.players.map(name => ({ name, score: 0 }));
-    let turn = 0;
     const ctx = {
       root, unit: u,
-      scoreboard() {
-        if (!settings.zoom) return h('span');
-        return h('div', { class: 'score' }, players.map((p, k) =>
-          h('div', { class: k === turn ? 'turn' : '' }, (k === turn ? '👉 ' : '') + `${p.name}: ${p.score}`)));
-      },
-      score(ok, keepTurn) {
-        if (!settings.zoom) return;
-        if (ok) players[turn].score++;
-        if (!keepTurn) turn = 1 - turn;
-      },
       finish(correct, total, mistakes) {
         const stars = MQ.starsFor(correct, total);
-        if (!itemsOverride) MQ.setStars(c.id, u.id, gameId, stars);
+        if (!itemsOverride || label !== 'mistakes only') store.record(c.key(u, gameId), { stars, correct, total, mistakes });
         root.innerHTML = '';
-        let winner = null;
-        if (settings.zoom) {
-          const [a, b] = players;
-          winner = a.score === b.score ? `It's a draw! ${a.score} : ${b.score} 🤝` : `${(a.score > b.score ? a : b).name} wins! ${a.score} : ${b.score} 🏆`;
-        }
-        root.append(h('div', { class: 'panel center' },
+        root.append(h('div', { class: 'panel' },
           h('div', { class: 'emoji' }, stars === 3 ? '🏆' : stars === 2 ? '🚀' : '🌱'),
           h('h2', {}, stars === 3 ? 'Excellent!' : stars === 2 ? 'Good work!' : 'Keep practising!'),
           h('div', { class: 'stars', style: 'font-size:2em' }, starStr(stars)),
           h('p', {}, `Correct: ${correct} / ${total}`),
-          winner ? h('p', { class: 'prompt' }, winner) : null,
           mistakes.length ? h('p', { class: 'muted' }, 'Practise these again: ' + mistakes.map(m => m.en || m.q || '').join(', ')) : null,
           h('div', { class: 'row' },
             mistakes.length ? h('button', { class: 'primary', onclick: () => play(c, u, gameId, MQ.shuffle(mistakes), 'mistakes only') }, `🔁 Practise mistakes (${mistakes.length})`) : null,
-            h('button', { onclick: () => play(c, u, gameId) }, '▶ Play again'),
+            h('button', { onclick: () => play(c, u, gameId, itemsOverride, label) }, '▶ Play again'),
             h('a', { class: 'btn', href: `${c.href}/${u.id}` }, '🪐 Back'))));
       },
     };
     app.append(
-      h('a', { href: `${c.href}/${u.id}`, class: 'muted' }, '← ' + u.title),
+      h('a', { href: `${c.href}/${u.id}`, class: 'back' }, '← ' + u.title),
       h('h1', {}, `${g.icon} ${g.title}`),
-      h('p', { class: 'muted' }, g.desc, itemsOverride ? ` (${label || 'mistakes only'})` : ''),
-      settings.zoom ? zoomNames() : null,
+      h('p', { class: 'muted' }, g.desc, itemsOverride ? ` (${label})` : ''),
       root,
     );
     g.run(ctx, itemsOverride || g.items(u));
   }
 
-  function zoomNames() {
-    const inputs = settings.players.map((n, k) => h('input', {
-      value: n, size: 10, 'aria-label': 'Player ' + (k + 1),
-      style: 'font:inherit;padding:4px 8px;border-radius:8px;border:0',
-      onchange: (e) => { settings.players[k] = e.target.value || n; MQ.saveSettings(); },
-    }));
-    return h('details', { class: 'hint' }, h('summary', {}, 'Player names'), h('div', { class: 'row' }, inputs));
+  async function setRoute(id, gid) {
+    const set = await store.getSet(id);
+    if (!set) { app.append(h('p', {}, 'This task was deleted.'), h('a', { class: 'btn', href: '#/' }, 'Home')); return; }
+    const u = MQ.sets.setToUnit(set);
+    if (gid && games[gid]) play(SETS, u, gid); else unit(SETS, u);
   }
 
   // ---------- router ----------
-  function route() {
-    if ('speechSynthesis' in window) speechSynthesis.cancel();
+  let seq = 0;
+  async function route() {
+    const my = ++seq;
+    MQ.stopSpeech();
     app.innerHTML = '';
+    renderWho();
     const parts = (location.hash || '#/').split('/');
-    if ((parts[1] === 'lists' || parts[1] === 'share') && MQ.lists.route(app, parts, { unit, play })) { window.scrollTo(0, 0); return; }
-    const [, , cid, uid, gid] = parts;
-    const c = courses[cid];
-    const u = c && c.units.find(x => x.id === uid);
-    if (c && u && gid && games[gid]) play(c, u, gid);
-    else if (c && u) unit(c, u);
-    else if (c) course(c);
-    else home();
-    window.scrollTo(0, 0);
+    try {
+      const [, top, a, b, c3] = parts;
+      if (top === 'who') await whoScreen();
+      else if (top === 'teacher') await MQ.teacher.route(app, parts);
+      else if (top === 's' && a) await setRoute(a, b);
+      else if (top === 'c' && courses[a]) {
+        const c = courses[a];
+        const u = c.units.find(x => x.id === b);
+        if (u && c3 && games[c3]) play(c, u, c3);
+        else if (u) unit(c, u);
+        else course(c);
+      } else await home();
+    } catch (e) {
+      console.error(e);
+      if (my === seq) app.append(h('div', { class: 'panel' }, h('p', {}, '⚠️ ' + e.message), h('a', { class: 'btn', href: '#/' }, 'Home')));
+    }
+    if (my === seq) window.scrollTo(0, 0);
   }
+  MQ.route = route;
+
+  // A link to the page we are already on (e.g. "← Unit" after "Practise") must still re-render.
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('a[href^="#"]');
+    if (a && a.getAttribute('href') === (location.hash || '#/')) { e.preventDefault(); route(); }
+  });
   window.addEventListener('hashchange', route);
-  route();
+
+  (async () => {
+    try { await store.init(); } catch (e) { console.error(e); MQ.toast('⚠️ ' + e.message); }
+    if (store.me) await store.setMe(store.me);
+    route();
+  })();
 })();

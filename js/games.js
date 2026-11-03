@@ -1,5 +1,5 @@
 // Moonquest mini-games. Each game: { title, icon, desc, available(unit), items(unit), run(ctx, items) }
-// ctx: { root, unit, finish(correct, total, mistakes), scoreboard(), score(ok) }
+// ctx: { root, unit, finish(correct, total, mistakes) }
 (function () {
   const { h, shuffle, sample, norm, speak } = MQ;
   const PRAISE = ['Great job! ⭐', 'Well done! 🚀', 'Super! 🌟', 'Yes! Correct! 🎉', 'Brilliant! ✨'];
@@ -9,7 +9,7 @@
   const bar = (part) => h('div', { class: 'progress' }, h('div', { style: `width:${Math.round(part * 100)}%` }));
 
   // Generic round-by-round runner used by most games.
-  // renderRound(item, body, answer) must return { answerText } for the teacher "Show answer" button.
+  // renderRound(item, body, answer) returns { answerText } for the "I don't know" button.
   function runRounds(ctx, items, renderRound) {
     let i = 0, correct = 0;
     const mistakes = [];
@@ -28,23 +28,21 @@
         if (answered) return;
         answered = true;
         if (ok) correct++; else mistakes.push(item);
-        ctx.score(ok);
         fb.className = 'feedback ' + (ok ? 'good' : 'bad');
         fb.textContent = ok ? praise() : msg;
         nextBtn.hidden = false;
-        if (teacherBtn) teacherBtn.hidden = true;
+        if (dunnoBtn) dunnoBtn.hidden = true;
         nextBtn.focus();
       };
       const body = h('div', { class: 'center' });
       const info = renderRound(item, body, answer) || {};
-      const teacherBtn = MQ.settings.zoom && info.answerText
-        ? h('button', { class: 'teacher', onclick: () => answer(false, 'Answer: ' + info.answerText) }, '👩‍🏫 Show answer')
+      const dunnoBtn = info.answerText
+        ? h('button', { class: 'ghost', onclick: () => { answer(false, 'Answer: ' + info.answerText); if (info.onReveal) info.onReveal(); } }, "🤷 I don't know")
         : null;
       wrap.append(
-        ctx.scoreboard(),
         h('div', { class: 'row space muted' }, h('span', {}, `${i + 1} / ${items.length}`), h('span', {}, `✔ ${correct}`)),
         bar(i / items.length),
-        h('div', { class: 'panel' }, body, fb, h('div', { class: 'row' }, teacherBtn, nextBtn)),
+        h('div', { class: 'panel' }, body, fb, h('div', { class: 'row' }, dunnoBtn, nextBtn)),
       );
     }
     step();
@@ -155,7 +153,7 @@
       const mistakes = [];
       const info = h('div', { class: 'row space muted' });
       const sb = h('div');
-      const updateInfo = () => { info.innerHTML = ''; info.append(h('span', {}, `Pairs: ${pairs} / ${items.length}`), h('span', {}, `Tries: ${tries}`)); sb.replaceChildren(ctx.scoreboard()); };
+      const updateInfo = () => { info.innerHTML = ''; info.append(h('span', {}, `Pairs: ${pairs} / ${items.length}`), h('span', {}, `Tries: ${tries}`)); };
       const grid = h('div', { class: 'memory' });
       cards.forEach(c => {
         c.el = h('button', {
@@ -172,13 +170,11 @@
               a.el.classList.add('done'); b.el.classList.add('done');
               speak(a.w.say || a.w.en);
               pairs++; open = [];
-              ctx.score(true, true);
               updateInfo();
               if (pairs === items.length) setTimeout(() => ctx.finish(items.length, Math.max(tries, items.length), mistakes), 700);
             } else {
               lock = true;
               [a, b].forEach(x => { if (!mistakes.includes(x.w)) mistakes.push(x.w); });
-              ctx.score(false);
               setTimeout(() => { a.el.classList.add('hidden'); b.el.classList.add('hidden'); open = []; lock = false; updateInfo(); }, 900);
             }
           },

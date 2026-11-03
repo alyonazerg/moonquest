@@ -1,0 +1,292 @@
+// Teacher room: students, card sets (with AI recognition), assignments, progress, settings, audio.
+(function () {
+  const { h, store, courses, games, toast } = MQ;
+  const COURSE_NAMES = { '': '—', as2: 'Academy Stars 2', as4: 'Academy Stars 4' };
+  const input = (attrs) => h('input', Object.assign({ class: 'field' }, attrs));
+
+  // ---------- progress labels ----------
+  function keyLabel(key, setsById) {
+    const [where, game] = [key.slice(0, key.lastIndexOf('/')), key.slice(key.lastIndexOf('/') + 1)];
+    const g = games[game] ? games[game].title : game;
+    if (where.startsWith('set:')) {
+      const s = setsById[where.slice(4)];
+      return `📝 ${s ? s.title : 'удалённый набор'} · ${g}`;
+    }
+    const [cid, unitId] = where.split('/');
+    const c = courses[cid];
+    const u = c && c.units.find(x => x.id === unitId);
+    return `${c ? c.icon + ' ' + c.title : cid} · ${u ? u.title : unitId} · ${g}`;
+  }
+  const fmtDate = (d) => d ? new Date(d).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+  const stars = (n) => '★'.repeat(n) + '☆'.repeat(3 - n);
+
+  // ---------- texts that the games read aloud ----------
+  function spokenTexts(unit) {
+    const t = new Set();
+    (unit.vocab || []).forEach(v => { t.add(v.en); });
+    (unit.sentences || []).forEach(s => t.add(s.en));
+    (unit.grammar || []).forEach(g => g.items.forEach(it => { if (it.q.includes(' ')) t.add(it.q.replace('___', it.a)); }));
+    (unit.verbs || []).forEach(v => { t.add(`${v.base}, ${v.v2}, ${v.v3}`); t.add(v.base); t.add(v.v2); t.add(v.v3); });
+    return [...t].filter(Boolean);
+  }
+  async function recordAudio(units, statusEl) {
+    const texts = [...new Set(units.flatMap(spokenTexts))].filter(x => !store.audioUrl(x));
+    if (!texts.length) { statusEl.textContent = '✅ Всё уже озвучено.'; return; }
+    let done = 0, failed = 0, lastErr = '';
+    for (const text of texts) {
+      statusEl.textContent = `🔊 Озвучиваю ${done + 1} / ${texts.length}: «${text}»`;
+      try { await store.saveAudio(text, await MQ.ai.tts(text)); }
+      catch (e) { failed++; lastErr = e.message; if (failed >= 3 && done === 0) break; }
+      done++;
+    }
+    statusEl.textContent = failed ? `⚠️ Готово с ошибками: ${failed} из ${done}. ${lastErr}` : `✅ Озвучено: ${done}.`;
+  }
+
+  // ---------- screens ----------
+  function tabs(active) {
+    const t = (href, label, id) => h('a', { class: 'btn chip' + (active === id ? ' on' : ''), href }, label);
+    return h('div', { class: 'row', style: 'margin:10px 0 18px' },
+      t('#/teacher', '👧 Ученицы', 'students'), t('#/teacher/sets', '🗂 Наборы карточек', 'sets'), t('#/teacher/settings', '⚙️ Настройки', 'settings'));
+  }
+  function header(app, active) {
+    app.append(h('h1', {}, '👩‍🏫 Кабинет учителя'),
+      store.mode === 'local' ? h('p', { class: 'hint' }, 'Локальный режим: данные хранятся только в этом браузере. Чтобы ученицы занимались со своих устройств, подключите базу (см. SETUP.md).') : null,
+      tabs(active));
+  }
+
+  function loginScreen(app) {
+    const email = input({ type: 'email', placeholder: 'Email' });
+    const pass = input({ type: 'password', placeholder: 'Пароль' });
+    const msg = h('div', { class: 'feedback bad' });
+    app.append(h('h1', {}, '👩‍🏫 Вход для учителя'), h('div', { class: 'panel narrow' },
+      email, pass, msg,
+      h('button', { class: 'primary', onclick: async () => {
+        try { await store.signIn(email.value.trim(), pass.value); MQ.route(); }
+        catch (e) { msg.textContent = e.message; }
+      } }, 'Войти')));
+  }
+
+  async function studentsScreen(app) {
+    header(app, 'students');
+    const [students, assigns] = await Promise.all([store.students(), store.assignments()]);
+    const name = input({ placeholder: 'Имя ученицы' });
+    const course = h('select', { class: 'field' }, Object.entries(COURSE_NAMES).map(([v, l]) => h('option', { value: v }, l)));
+    app.append(
+      h('div', { class: 'panel' },
+        h('h2', {}, 'Добавить ученицу'),
+        h('div', { class: 'row' }, name, course,
+          h('button', { class: 'primary', onclick: async () => {
+            if (!name.value.trim()) return;
+            await store.saveStudent({ name: name.value.trim(), course: course.value });
+            MQ.route();
+          } }, '＋ Добавить'))),
+      students.length ? h('div', { class: 'grid' }, students.map(s => h('a', { class: 'tile', href: `#/teacher/st/${s.id}` },
+        h('div', { class: 'big' }, '👧'),
+        h('div', { class: 'title' }, s.name),
+        h('div', { class: 'muted' }, COURSE_NAMES[s.course || '']),
+        h('div', { class: 'muted' }, `Наборов назначено: ${assigns.filter(a => a.student_id === s.id).length}`)))) : h('p', { class: 'muted' }, 'Пока нет учениц.'),
+    );
+  }
+
+  async function studentScreen(app, id) {
+    header(app, 'students');
+    const [students, sets, assigns, progress] = await Promise.all([store.students(), store.sets(), store.assignments(), store.progress(id)]);
+    const s = students.find(x => x.id === id);
+    if (!s) { app.append(h('p', {}, 'Ученица не найдена.')); return; }
+    const setsById = Object.fromEntries(sets.map(x => [x.id, x]));
+    const mine = new Set(assigns.filter(a => a.student_id === id).map(a => a.set_id));
+    const nameF = input({ value: s.name });
+    const course = h('select', { class: 'field' }, Object.entries(COURSE_NAMES).map(([v, l]) => h('option', { value: v }, l)));
+    course.value = s.course || '';
+    const rows = progress.slice().sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)));
+    app.append(
+      h('a', { href: '#/teacher', class: 'muted' }, '← Все ученицы'),
+      h('div', { class: 'panel' },
+        h('h2', {}, '👧 ' + s.name),
+        h('div', { class: 'row' }, nameF, course,
+          h('button', { class: 'primary', onclick: async () => { await store.saveStudent({ id, name: nameF.value.trim() || s.name, course: course.value }); toast('Сохранено'); MQ.route(); } }, '💾 Сохранить'),
+          h('button', { class: 'ghost', onclick: async () => { if (confirm(`Удалить ${s.name} и весь её прогресс?`)) { await store.deleteStudent(id); location.hash = '#/teacher'; } } }, '🗑 Удалить'))),
+      h('div', { class: 'panel' },
+        h('h2', {}, '🗂 Назначенные наборы'),
+        sets.length ? sets.map(set => {
+          const cb = h('input', { type: 'checkbox', onchange: async (e) => { await store.assign(id, set.id, e.target.checked); toast(e.target.checked ? 'Назначено' : 'Снято'); } });
+          cb.checked = mine.has(set.id);
+          return h('label', { class: 'check' }, cb, ` ${set.kind === 'verbs' ? '🔁' : '📝'} ${set.title} `, h('span', { class: 'muted' }, `(${set.items.length})`));
+        }) : h('p', { class: 'muted' }, 'Наборов пока нет. Создайте их во вкладке «Наборы карточек».')),
+      h('div', { class: 'panel' },
+        h('h2', {}, '📈 Прогресс'),
+        rows.length ? h('div', { class: 'table-wrap' }, h('table', { class: 'table' },
+          h('tr', {}, h('th', {}, 'Игра'), h('th', {}, 'Звёзды'), h('th', {}, 'Последний раз'), h('th', {}, 'Ошибки')),
+          rows.map(p => h('tr', {},
+            h('td', {}, keyLabel(p.key, setsById)),
+            h('td', { class: 'stars' }, stars(p.stars || 0)),
+            h('td', {}, `${p.correct ?? ''}/${p.total ?? ''} · ${fmtDate(p.updated_at)}${p.plays ? ` · ×${p.plays}` : ''}`),
+            h('td', { class: 'muted' }, (p.mistakes || []).join(', ')))))) : h('p', { class: 'muted' }, 'Ещё не играла.')),
+    );
+  }
+
+  async function setsScreen(app) {
+    header(app, 'sets');
+    const [sets, students, assigns] = await Promise.all([store.sets(), store.students(), store.assignments()]);
+    const names = Object.fromEntries(students.map(s => [s.id, s.name]));
+    app.append(
+      h('div', { class: 'row' }, h('a', { class: 'btn primary', href: '#/teacher/set/new' }, '＋ Новый набор')),
+      sets.length ? h('div', { class: 'grid', style: 'margin-top:16px' }, sets.map(set => {
+        const who = assigns.filter(a => a.set_id === set.id).map(a => names[a.student_id]).filter(Boolean);
+        return h('div', { class: 'tile' },
+          h('div', { class: 'big' }, set.kind === 'verbs' ? '🔁' : '📝'),
+          h('div', { class: 'title' }, set.title),
+          h('div', { class: 'muted' }, `${set.items.length} ${set.kind === 'verbs' ? 'глаголов' : 'слов'}`),
+          h('div', { class: 'muted' }, who.length ? '👧 ' + who.join(', ') : 'не назначен'),
+          h('div', { class: 'row', style: 'margin-top:8px' },
+            h('a', { class: 'btn chip', href: `#/teacher/set/${set.id}` }, '✏️ Изменить'),
+            h('a', { class: 'btn chip', href: `#/s/${set.id}` }, '▶ Играть')));
+      })) : h('p', { class: 'muted' }, 'Наборов пока нет.'),
+    );
+  }
+
+  async function setEditor(app, id) {
+    header(app, 'sets');
+    const [existing, students, assigns] = await Promise.all([id ? store.getSet(id) : null, store.students(), store.assignments()]);
+    const set = existing || { title: '', kind: 'words', items: [] };
+    let items = set.items.map(x => Object.assign({}, x));
+    const title = input({ value: set.title, placeholder: 'Название, например: Food · Unit 3' });
+    const kind = h('select', { class: 'field' }, h('option', { value: 'words' }, '📝 Слова'), h('option', { value: 'verbs' }, '🔁 Неправильные глаголы'));
+    kind.value = set.kind;
+
+    // --- AI recognition ---
+    const aiText = h('textarea', { class: 'field', rows: 4, placeholder: 'Вставьте текст, список слов или страницу учебника…' });
+    const files = h('input', { type: 'file', accept: 'image/*', multiple: true, class: 'field' });
+    const aiMsg = h('div', { class: 'hint' });
+    const aiBtn = h('button', { class: 'primary', onclick: async () => {
+      if (!MQ.ai.hasKey()) { aiMsg.textContent = 'Сначала добавьте ключ Mistral во вкладке «Настройки».'; return; }
+      if (!aiText.value.trim() && !files.files.length) { aiMsg.textContent = 'Добавьте текст или фото.'; return; }
+      aiBtn.disabled = true; aiMsg.textContent = '✨ Распознаю… (10–30 секунд)';
+      try {
+        const r = await MQ.ai.recognize({ text: aiText.value.trim(), files: [...files.files] });
+        if (items.length && r.kind !== kind.value) items = [];
+        kind.value = r.kind;
+        items = items.concat(r.items);
+        if (!title.value.trim() && r.title) title.value = r.title;
+        aiMsg.textContent = `✅ Найдено: ${r.items.length}. Проверьте и поправьте таблицу ниже.`;
+        renderTable();
+      } catch (e) { aiMsg.textContent = '⚠️ ' + e.message; }
+      aiBtn.disabled = false;
+    } }, '✨ Распознать с ИИ');
+
+    // --- paste as text ---
+    const paste = h('textarea', { class: 'field', rows: 4 });
+    const pasteBtn = h('button', { onclick: () => {
+      const r = MQ.sets.parse(kind.value, paste.value);
+      items = items.concat(r.items); paste.value = '';
+      if (r.errors.length) toast(r.errors.join('; '));
+      renderTable();
+    } }, '➕ Добавить в таблицу');
+    const pasteHelp = () => { paste.placeholder = kind.value === 'verbs' ? 'go - went - gone идти\nsee saw seen' : 'apple - яблоко 🍎\nbread - хлеб'; };
+
+    // --- editable table ---
+    const tableBox = h('div', { class: 'table-wrap' });
+    const cols = () => kind.value === 'verbs'
+      ? [['base', 'V1'], ['v2', 'V2'], ['v3', 'V3'], ['ru', 'Перевод']]
+      : [['en', 'English'], ['ru', 'Перевод'], ['pic', 'Картинка']];
+    function renderTable() {
+      pasteHelp();
+      const c = cols();
+      tableBox.replaceChildren(h('table', { class: 'table' },
+        h('tr', {}, c.map(([, l]) => h('th', {}, l)), h('th', {})),
+        items.map((it, k) => h('tr', {},
+          c.map(([f]) => h('td', {}, h('input', { class: 'cell' + (f === 'pic' ? ' pic' : ''), value: it[f] || '', oninput: (e) => { it[f] = e.target.value; } }))),
+          h('td', {}, h('button', { class: 'chip', title: 'Удалить строку', onclick: () => { items.splice(k, 1); renderTable(); } }, '✕')))),
+      ), h('button', { class: 'chip', style: 'margin-top:8px', onclick: () => { items.push({}); renderTable(); } }, '＋ строка'));
+    }
+    kind.onchange = () => { if (items.length && !confirm('Сменить тип? Таблица будет очищена.')) { kind.value = kind.value === 'verbs' ? 'words' : 'verbs'; return; } items = []; renderTable(); };
+    renderTable();
+
+    // --- assignments ---
+    const mine = new Set(assigns.filter(a => a.set_id === set.id).map(a => a.student_id));
+    const checks = students.map(s => { const cb = h('input', { type: 'checkbox' }); cb.checked = mine.has(s.id); return { s, cb }; });
+
+    const status = h('div', { class: 'hint' });
+    app.append(
+      h('a', { href: '#/teacher/sets', class: 'muted' }, '← Все наборы'),
+      h('div', { class: 'panel' }, h('h2', {}, existing ? '✏️ Набор карточек' : '＋ Новый набор'), h('div', { class: 'row' }, title, kind)),
+      h('div', { class: 'panel' },
+        h('h2', {}, '✨ Распознать с помощью ИИ'),
+        h('p', { class: 'hint' }, 'Фото страницы учебника, скриншот или текст: ИИ найдёт слова, переведёт и подберёт картинку.'),
+        aiText, files, h('div', { class: 'row' }, aiBtn), aiMsg),
+      h('details', { class: 'panel' }, h('summary', {}, '📋 Или вставить списком'), paste, h('div', { class: 'row' }, pasteBtn)),
+      h('div', { class: 'panel' }, h('h2', {}, '🃏 Карточки'), tableBox),
+      h('div', { class: 'panel' }, h('h2', {}, '👧 Назначить'),
+        checks.length ? checks.map(({ s, cb }) => h('label', { class: 'check' }, cb, ' ' + s.name)) : h('p', { class: 'muted' }, 'Сначала добавьте учениц.')),
+      h('div', { class: 'row' },
+        h('button', { class: 'primary', onclick: async () => {
+          const clean = items.filter(it => kind.value === 'verbs' ? it.base && it.v2 && it.v3 : it.en)
+            .map(it => Object.fromEntries(Object.entries(it).map(([k, v]) => [k, String(v || '').trim()])));
+          if (!clean.length) { toast('Добавьте хотя бы одну карточку'); return; }
+          try {
+            const saved = await store.saveSet({ id: set.id, title: title.value.trim() || 'Words', kind: kind.value, items: clean });
+            for (const { s, cb } of checks) if (cb.checked !== mine.has(s.id)) await store.assign(s.id, saved.id, cb.checked);
+            toast('💾 Сохранено');
+            if (store.mode === 'cloud' && MQ.ai.hasKey()) await recordAudio([MQ.sets.setToUnit(saved)], status);
+            location.hash = '#/teacher/sets';
+          } catch (e) { toast('⚠️ ' + e.message); }
+        } }, '💾 Сохранить'),
+        existing ? h('button', { class: 'ghost', onclick: async () => { if (confirm('Удалить набор?')) { await store.deleteSet(set.id); location.hash = '#/teacher/sets'; } } }, '🗑 Удалить') : null),
+      status,
+    );
+  }
+
+  function settingsScreen(app) {
+    header(app, 'settings');
+    const s = MQ.ai.settings;
+    const key = input({ type: 'password', value: s.key, placeholder: 'API-ключ Mistral' });
+    const chat = input({ value: s.chatModel });
+    const ttsM = input({ value: s.ttsModel });
+    const voice = input({ value: s.voice, placeholder: 'id голоса (необязательно)' });
+    const msg = h('div', { class: 'hint' });
+    const audioMsg = h('div', { class: 'hint' });
+    const allUnits = Object.values(courses).flatMap(c => c.units);
+    app.append(
+      h('div', { class: 'panel' },
+        h('h2', {}, '🤖 Mistral AI'),
+        h('p', { class: 'hint' }, 'Ключ хранится только в этом браузере и отправляется только на api.mistral.ai. Ученицам он не нужен.'),
+        h('label', { class: 'lbl' }, 'API-ключ'), key,
+        h('label', { class: 'lbl' }, 'Модель для распознавания (с поддержкой фото)'), chat,
+        h('label', { class: 'lbl' }, 'Модель озвучки'), ttsM,
+        h('label', { class: 'lbl' }, 'Голос'), voice,
+        h('div', { class: 'row', style: 'margin-top:12px' },
+          h('button', { class: 'primary', onclick: () => { MQ.ai.saveSettings({ key: key.value.trim(), chatModel: chat.value.trim(), ttsModel: ttsM.value.trim(), voice: voice.value.trim() }); msg.textContent = '💾 Сохранено'; } }, '💾 Сохранить'),
+          h('button', { onclick: async () => {
+            MQ.ai.saveSettings({ key: key.value.trim(), chatModel: chat.value.trim(), ttsModel: ttsM.value.trim(), voice: voice.value.trim() });
+            msg.textContent = '🔊 Проверяю…';
+            try { const b = await MQ.ai.tts("Hello! Let's learn English."); await new Audio(URL.createObjectURL(b)).play(); msg.textContent = '✅ Голос работает'; }
+            catch (e) { msg.textContent = '⚠️ ' + e.message; }
+          } }, '🔊 Проверить голос')),
+        msg),
+      h('div', { class: 'panel' },
+        h('h2', {}, '🔊 Озвучка учебных юнитов'),
+        h('p', { class: 'hint' }, store.mode === 'cloud'
+          ? 'Слова и предложения озвучиваются голосом Mistral один раз и сохраняются в базе. Потом ученицы слышат этот голос без ключа.'
+          : 'Работает после подключения базы. Сейчас голос Mistral звучит только на этом устройстве (если ключ сохранён).'),
+        store.mode === 'cloud' ? h('button', { onclick: (e) => { e.target.disabled = true; recordAudio(allUnits, audioMsg).then(() => { e.target.disabled = false; }); } }, '🔊 Озвучить все юниты') : null,
+        audioMsg),
+      h('div', { class: 'panel' },
+        h('h2', {}, '🗄 База данных'),
+        h('p', {}, store.mode === 'cloud' ? '✅ Подключена (Supabase).' : 'Локальный режим. Инструкция по подключению — в файле SETUP.md в репозитории.'),
+        store.mode === 'cloud' ? h('button', { class: 'ghost', onclick: async () => { await store.signOut(); location.hash = '#/'; } }, '🚪 Выйти') : null),
+    );
+  }
+
+  MQ.teacher = {
+    async route(app, parts) {
+      if (!store.isTeacher()) return loginScreen(app);
+      const [, , a, b] = parts; // #/teacher/<a>/<b>
+      if (!a) return studentsScreen(app);
+      if (a === 'st') return studentScreen(app, b);
+      if (a === 'sets') return setsScreen(app);
+      if (a === 'set') return setEditor(app, b === 'new' ? null : b);
+      if (a === 'settings') return settingsScreen(app);
+      return studentsScreen(app);
+    },
+  };
+})();
