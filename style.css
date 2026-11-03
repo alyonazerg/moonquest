@@ -298,3 +298,8 @@ textarea.field, input[type=file].field { width: 100%; }
 .note { display: flex; gap: 14px; align-items: center; text-align: left; max-width: 760px; }
 .note p { margin: 0; }
 .big-note { font-size: 2em; filter: drop-shadow(0 0 12px rgba(255, 211, 77, .6)); }
+
+/* folder tile: looks like a stack of cards */
+.tile.folder { overflow: visible; box-shadow: 8px 8px 0 -2px rgba(155, 123, 255, .35), 16px 16px 0 -4px rgba(94, 231, 255, .22), var(--glass-shadow); }
+.tile.folder::after { display: none; }
+.tile.folder:hover { box-shadow: 10px 10px 0 -2px rgba(155, 123, 255, .45), 20px 20px 0 -4px rgba(94, 231, 255, .3), 0 26px 60px rgba(5, 0, 30, .6), 0 0 34px rgba(155, 123, 255, .45); }

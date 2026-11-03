@@ -86,15 +86,21 @@
           h('div', { class: 'big' }, u.icon || '🪐'),
           h('div', { class: 'title' }, u.title),
           h('div', { class: 'muted' }, c.title),
-          h('div', { class: 'stars' }, `★ ${unitStars(c, u)} / ${gameIds(u).length * 3}`))))),
-      showVerbs ? h('h2', {}, '🔁 Irregular verbs galaxy') : null,
-      showVerbs ? h('div', { class: 'grid' }, courses.irr.units.map(u =>
-        h('a', { class: 'tile', href: `${courses.irr.href}/${u.id}` },
-          h('div', { class: 'big' }, u.icon),
-          h('div', { class: 'title' }, u.title),
-          h('div', { class: 'muted' }, u.subtitle),
-          h('div', { class: 'stars' }, `★ ${unitStars(courses.irr, u)} / ${gameIds(u).length * 3}`)))) : null,
+          h('div', { class: 'stars' }, `★ ${unitStars(c, u)} / ${gameIds(u).length * 3}`)))),
+        showVerbs ? folderTile(courses.irr) : null),
     );
+  }
+
+  // A folder tile that opens a whole collection (e.g. all irregular verb groups)
+  function folderTile(c) {
+    const verbs = c.units.reduce((n, u) => n + (u.verbs || []).length, 0);
+    const got = c.units.reduce((n, u) => n + unitStars(c, u), 0);
+    const max = c.units.reduce((n, u) => n + gameIds(u).length * 3, 0);
+    return h('a', { class: 'tile folder', href: c.href },
+      h('div', { class: 'big' }, '📁'),
+      h('div', { class: 'title' }, c.title),
+      h('div', { class: 'muted' }, `${c.units.length} groups · ${verbs} verbs`),
+      h('div', { class: 'stars' }, `★ ${got} / ${max}`));
   }
 
   function course(c) {
@@ -111,7 +117,7 @@
 
   function unit(c, u) {
     app.append(
-      h('a', { href: c === SETS ? '#/' : '#/', class: 'back' }, '← Home'),
+      c === courses.irr ? h('a', { href: c.href, class: 'back' }, '← ' + c.title) : h('a', { href: '#/', class: 'back' }, '← Home'),
       h('h1', {}, `${u.icon || '🪐'} ${u.title}`),
       h('p', { class: 'muted' }, u.subtitle || ''),
       u.note ? h('div', { class: 'panel note' }, h('div', { class: 'big-note' }, '💡'), h('p', {}, u.note)) : null,
