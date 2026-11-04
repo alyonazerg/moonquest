@@ -7,6 +7,24 @@
 //   OPENAI_API_KEY      (OpenAI)      optional OPENAI_MODEL,  default gpt-4.1-mini
 //   MISTRAL_API_KEY     (Mistral)     optional MISTRAL_MODEL, default mistral-small-latest
 
+import { createClient } from "jsr:@supabase/supabase-js@2";
+
+// Who may use the AI: the signed-in teacher, or a student with her personal code.
+// Supabase gives every function these two settings automatically.
+const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+async function allowed(req: Request, body: { sid?: string; pin?: string }) {
+  const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  if (token && token.split(".").length === 3) {
+    const { data } = await admin.auth.getUser(token);
+    if (data?.user) return true; // the teacher
+  }
+  if (body.sid && body.pin) {
+    const { data, error } = await admin.rpc("check_student", { sid: body.sid, p: String(body.pin) });
+    if (!error && data === true) return true;
+  }
+  return false;
+}
+
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -95,7 +113,12 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
   try {
-    const { text = "", images = [], mode = "cards" } = await req.json();
+    const body = await req.json();
+    const { text = "", images = [], mode = "cards" } = body;
+    if (!(await allowed(req, body))) return json({ error: "Please log in (teacher) or enter your student code again." }, 401);
+    // daily limit for the whole site (secret AI_DAILY_LIMIT, default 200 requests a day)
+    const { data: okToday } = await admin.rpc("ai_take", { max_per_day: Number(Deno.env.get("AI_DAILY_LIMIT") || 200) });
+    if (okToday === false) return json({ error: "The AI limit for today is used up. Try again tomorrow." }, 429);
     // keep requests small: this function only makes vocabulary cards
     if (typeof text !== "string" || text.length > 6000) return json({ error: "Text is too long (max 6000 characters)." }, 400);
     if (!Array.isArray(images) || images.length > 3) return json({ error: "Up to 3 photos at a time." }, 400);

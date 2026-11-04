@@ -66,6 +66,8 @@
   let db = null, session = null;
   const audioMap = {};
   const must = ({ data, error }) => { if (error) throw new Error(error.message); return data; };
+  // until supabase/004_security.sql is run the safe functions do not exist yet: then use the old way
+  const noFunction = ({ error }) => !!error && /could not find the function|schema cache|does not exist/i.test(error.message || '');
   // Short stable file name for a text (FNV-1a, two seeds)
   function sha(text) {
     const fnv = (seed) => { let x = seed >>> 0; for (const ch of text) { x ^= ch.codePointAt(0); x = Math.imul(x, 16777619) >>> 0; } return x.toString(16).padStart(8, '0'); };
@@ -100,6 +102,11 @@
     async getSet(id) { return must(await db.from('sets').select('*').eq('id', id).maybeSingle()); },
     async saveSet(set) {
       const row = { title: set.title, kind: set.kind, items: set.items, unit_key: set.unit_key || null };
+      // a student (not signed in) saves her own words through a function that checks her code
+      if (!session && set.student_id) {
+        const r = await db.rpc('save_student_set', { sid: set.student_id, p: pinOf(set.student_id), s: Object.assign({ id: set.id || null }, row) });
+        if (!noFunction(r)) return must(r);
+      }
       if (set.student_id) row.student_id = set.student_id;
       if (set.id) return must(await db.from('sets').update(row).eq('id', set.id).select().single());
       return must(await db.from('sets').insert(row).select().single());
@@ -110,8 +117,12 @@
       if (on) must(await db.from('assignments').upsert({ student_id: studentId, set_id: setId }));
       else must(await db.from('assignments').delete().eq('student_id', studentId).eq('set_id', setId));
     },
-    async progress(studentId) { return must(await db.from('progress').select('*').eq('student_id', studentId)); },
+    async progress(studentId) {
+      if (!session) { const r = await db.rpc('get_progress', { sid: studentId, p: pinOf(studentId) }); if (!noFunction(r)) return must(r); }
+      return must(await db.from('progress').select('*').eq('student_id', studentId));
+    },
     async saveProgress(studentId, rec) {
+      if (!session) { const r = await db.rpc('save_progress', { sid: studentId, p: pinOf(studentId), rec }); if (!noFunction(r)) return must(r); }
       must(await db.from('progress').upsert(Object.assign({ student_id: studentId }, rec), { onConflict: 'student_id,key' }));
     },
     audioUrl: (text) => audioMap[text] || null,
@@ -135,7 +146,9 @@
   // AI cards for students (no key in the browser): Supabase Edge Function "cards-ai" holds the key.
   store.aiCards = async function ({ text, images, mode }) {
     if (store.mode !== 'cloud') throw new Error('AI for students works after the database is connected.');
-    const { data, error } = await db.functions.invoke('cards-ai', { body: { text, images, mode } });
+    // the function lets in the signed-in teacher or a student with her code
+    const who = store.me ? { sid: store.me.id, pin: store.me.pin } : {};
+    const { data, error } = await db.functions.invoke('cards-ai', { body: Object.assign({ text, images, mode }, who) });
     if (error) {
       let msg = error.message;
       try { msg = (await error.context.json()).error || msg; } catch (e) { /* keep message */ }
@@ -147,6 +160,12 @@
 
   // ---------------- current student + progress cache ----------------
   let progressCache = {};
+  // the code of the student who is playing on this device (kept after she logged in)
+  function pinOf(studentId) {
+    const me = store.me;
+    if (!me || me.id !== studentId || !me.pin) throw new Error('Please log in again with your code (👤 at the top).');
+    return me.pin;
+  }
   store.me = load('me', null);
   store.setMe = async function (student) {
     store.me = student;
@@ -168,7 +187,12 @@
     try { await store.saveProgress(store.me.id, row); }
     catch (e) {
       if (!noDataColumn && /data/.test(e.message)) { noDataColumn = true; console.warn('progress.data column missing — run supabase/002_update.sql'); return put(rec); }
-      console.warn('progress save', e); MQ.toast('⚠️ Progress not saved: ' + e.message);
+      console.warn('progress save', e);
+      if (/wrong student code|log in again|too many/i.test(e.message)) {
+        // the code on this device is not valid any more: log in again
+        MQ.toast('🔐 Please enter your code again'); store.setMe(null); location.hash = '#/who'; return;
+      }
+      MQ.toast('⚠️ Progress not saved: ' + e.message);
     }
   }
   store.record = async function (key, { stars, correct, total, mistakes, data }) {

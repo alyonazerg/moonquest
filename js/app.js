@@ -22,7 +22,7 @@
   // ---------- screens ----------
   async function whoScreen() {
     const students = await store.students();
-    const enter = async (s) => { await store.setMe({ id: s.id, name: s.name, course: s.course }); location.hash = '#/'; };
+    const enter = async (s, pin) => { await store.setMe({ id: s.id, name: s.name, course: s.course, pin: pin || s.pin || '' }); location.hash = '#/'; };
     // Ask for the personal code before entering
     const pick = (s) => {
       if (store.mode === 'local' && !s.pin) return enter(s);
@@ -30,7 +30,7 @@
       const msg = h('div', { class: 'feedback bad' });
       const go = async () => {
         msg.textContent = '';
-        try { if (await store.checkPin(s.id, code.value)) return enter(s); msg.textContent = 'Wrong code. Try again or ask your teacher.'; }
+        try { if (await store.checkPin(s.id, code.value)) return enter(s, code.value.trim()); msg.textContent = 'Wrong code. Try again or ask your teacher.'; }
         catch (e) { msg.textContent = '⚠️ ' + e.message; }
         code.value = ''; code.focus();
       };
@@ -323,7 +323,7 @@
   // Personal link from the teacher: #/login/<student id>/<code>
   async function loginLink(id, pin) {
     const s = (await store.students()).find(x => x.id === id);
-    if (s && await store.checkPin(id, pin)) { await store.setMe({ id: s.id, name: s.name, course: s.course }); location.replace('#/'); return; }
+    if (s && await store.checkPin(id, pin)) { await store.setMe({ id: s.id, name: s.name, course: s.course, pin }); location.replace('#/'); return; }
     location.replace('#/who');
   }
 
@@ -368,6 +368,8 @@
 
   (async () => {
     try { await store.init(); } catch (e) { console.error(e); MQ.toast('⚠️ ' + e.message); }
+    // students who logged in before codes were kept on the device enter their code once more
+    if (store.me && store.mode === 'cloud' && !store.me.pin) await store.setMe(null);
     if (store.me) await store.setMe(store.me);
     route();
   })();

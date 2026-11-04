@@ -40,6 +40,7 @@
 Выполните по очереди в **SQL Editor → New query → Run** (каждый файл один раз):
 - `supabase/002_update.sql` — коды учениц и расписание карточек Anki;
 - `supabase/003_cards.sql` — текущий юнит ученицы, карточки, прикреплённые к юниту, карточки от учениц.
+- `supabase/004_security.sql` — защита: ученицы сохраняют прогресс и свои слова только со своим кодом, лимит неверных кодов (5 за 10 минут), дневной лимит ИИ.
 
 ## 7. ИИ-карточки для учениц (без ключа в их браузере)
 Ученицы тоже могут нажать «✨ Make cards». Для этого ключ ИИ хранится в Supabase, а не на сайте.
@@ -48,7 +49,7 @@
 3. Удалите пример кода и вставьте всё из файла `supabase/functions/cards-ai/index.ts` → **Deploy function**.
 4. Откройте функцию → **Details** (или Settings) → выключите **Enforce JWT verification** (Verify JWT) → Save.
    Это нужно, чтобы функцию могли вызывать ученицы без входа.
-5. Слева **Edge Functions → Secrets** → **Add new secret**: одно из
+5. Слева **Edge Functions → Secrets** → **Add new secret**: одно из (и по желанию `AI_DAILY_LIMIT` — сколько запросов к ИИ в день, по умолчанию 200)
    - `ANTHROPIC_API_KEY` = ключ Claude,
    - `OPENAI_API_KEY` = ключ OpenAI,
    - `MISTRAL_API_KEY` = ключ Mistral.
