@@ -353,7 +353,15 @@
       } else await home();
     } catch (e) {
       console.error(e);
-      if (my === seq) app.append(h('div', { class: 'panel' }, h('p', {}, '⚠️ ' + e.message), h('a', { class: 'btn', href: '#/' }, 'Home')));
+      if (my === seq) {
+        app.innerHTML = '';
+        const offline = /connection|fetch|network/i.test(e.message);
+        app.append(h('div', { class: 'panel narrow' },
+          h('div', { class: 'emoji' }, offline ? '📡' : '⚠️'),
+          h('h2', {}, offline ? 'No connection' : 'Something went wrong'),
+          h('p', { class: 'muted' }, offline ? 'Нет связи с сервером. Проверьте интернет и нажмите «Повторить».' : e.message),
+          h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => route() }, '🔄 Повторить'), h('a', { class: 'btn', href: '#/' }, 'Home'))));
+      }
     }
     if (my === seq) window.scrollTo(0, 0);
   }

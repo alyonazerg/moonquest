@@ -76,13 +76,23 @@
   const cloud = {
     mode: 'cloud',
     async init() {
-      db = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+      // every request gets 12 seconds; after that the page shows "no connection" instead of hanging
+      const timedFetch = (url, opts = {}) => {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 12000);
+        if (opts.signal) opts.signal.addEventListener('abort', () => ctrl.abort());
+        return fetch(url, Object.assign({}, opts, { signal: ctrl.signal }))
+          .catch(e => { throw new Error('No connection to the server. Check the internet and try again.'); })
+          .finally(() => clearTimeout(t));
+      };
+      db = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey, { global: { fetch: timedFetch } });
       session = (await db.auth.getSession()).data.session;
       db.auth.onAuthStateChange((_e, s) => { session = s; });
-      try {
-        const rows = must(await db.from('audio').select('text,path'));
-        rows.forEach(r => { audioMap[r.text] = db.storage.from('audio').getPublicUrl(r.path).data.publicUrl; });
-      } catch (e) { console.warn('audio list', e); }
+      // the list of recorded voice loads in the background (it must not delay the first screen)
+      db.from('audio').select('text,path').then(({ data, error }) => {
+        if (error) return console.warn('audio list', error.message);
+        (data || []).forEach(r => { audioMap[r.text] = db.storage.from('audio').getPublicUrl(r.path).data.publicUrl; });
+      }, e => console.warn('audio list', e));
     },
     isTeacher: () => !!session,
     async signIn(email, password) { must(await db.auth.signInWithPassword({ email, password })); return true; },
