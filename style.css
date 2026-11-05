@@ -681,3 +681,14 @@ body.theme-magic .st-card { background: linear-gradient(150deg, #7a2f6e, #3a1f4a
 .card-q { font-size: 1.35em; font-weight: 800; line-height: 1.35; text-align: center; }
 .card-q .gap { color: var(--accent); }
 @media (max-width: 560px) { .path-steps .step-name { display: none; } .path-steps li a { padding-right: 8px; } }
+
+/* animation off: still background, no glass blur, no floating */
+body.no-anim *, body.no-anim *::before, body.no-anim *::after { animation: none !important; }
+body.no-anim .panel, body.no-anim .tile, body.no-anim .topbar-inner, body.no-anim button, body.no-anim .btn { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+body.no-anim .panel, body.no-anim .tile { background: rgba(40, 34, 110, .92); }
+/* teacher analytics */
+.weak { color: var(--bad); font-weight: 800; }
+.okk { color: var(--good); font-weight: 800; }
+.hist { display: flex; justify-content: center; align-items: flex-end; gap: 6px; height: 90px; margin: 8px 0; }
+.hist .bar { width: 26px; border-radius: 6px 6px 0 0; background: linear-gradient(180deg, var(--accent), #ff9f43); position: relative; }
+.hist .bar span { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: .6em; white-space: nowrap; }

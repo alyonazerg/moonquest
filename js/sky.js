@@ -4,7 +4,18 @@
   c.id = 'sky';
   document.body.prepend(c);
   const ctx = c.getContext('2d');
-  const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Animation is off with "reduce motion", on weak devices, or when switched off on the home screen.
+  function computeStill() {
+    let pref = null;
+    try { pref = JSON.parse(localStorage.getItem('mq_anim')); } catch (e) { /* auto */ }
+    if (pref === false) return true;
+    if (pref === true) return false;
+    const weak = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2) || (navigator.deviceMemory && navigator.deviceMemory <= 2);
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches || !!weak;
+  }
+  let still = computeStill();
+  let looping = false;
+  document.body.classList.toggle('no-anim', still);
   let stars = [], planets = [], meteors = [], candles = [], w = 0, h = 0;
   let magic = document.body.classList.contains('theme-magic');
   let moonCanvas = null;
@@ -144,10 +155,20 @@
         ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(m.x + len, m.y - len * 0.45); ctx.stroke();
         m.x -= 9; m.y += 4; m.life -= 0.018;
       }
-      requestAnimationFrame(draw);
     }
   }
+  function loop(t) {
+    draw(t);
+    if (!still) requestAnimationFrame(loop); else looping = false;
+  }
+  function start() { if (!looping) { looping = true; requestAnimationFrame(loop); } }
   window.addEventListener('resize', () => { resize(); if (still) draw(0); });
+  window.addEventListener('mq-theme', () => { if (still) setTimeout(() => draw(0), 0); });
+  window.addEventListener('mq-anim', () => {
+    still = computeStill();
+    document.body.classList.toggle('no-anim', still);
+    if (still) draw(0); else start();
+  });
   resize();
-  requestAnimationFrame(draw);
+  start();
 })();

@@ -203,5 +203,11 @@ window.MQ = (function () {
   };
   const themed = (k) => WORDS[isMagic() ? 'magic' : 'space'][k];
 
-  return { roleOf, speaker, isMagic, gt, themed, theme, applyTheme, setTheme, sfx, formSay, verbSay, nowUnits, unitOptions, findUnit, pic, courses, addUnit, load, save, h, shuffle, sample, norm, starsFor, uid, toast, speak, stopSpeech };
+  // 🐢 slow mode: no time limits and no speeding up (per student, on this device)
+  const slow = () => !!load('slow_' + ((MQ.store && MQ.store.me && MQ.store.me.id) || 'guest'), false);
+  const setSlow = (on) => save('slow_' + ((MQ.store && MQ.store.me && MQ.store.me.id) || 'guest'), !!on);
+  const animOn = () => !document.body.classList.contains('no-anim');
+  function setAnim(on) { save('anim', !!on); window.dispatchEvent(new Event('mq-anim')); }
+
+  return { slow, setSlow, animOn, setAnim, roleOf, speaker, isMagic, gt, themed, theme, applyTheme, setTheme, sfx, formSay, verbSay, nowUnits, unitOptions, findUnit, pic, courses, addUnit, load, save, h, shuffle, sample, norm, starsFor, uid, toast, speak, stopSpeech };
 })();

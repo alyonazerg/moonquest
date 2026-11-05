@@ -82,7 +82,8 @@
 
     // world
     const laneX = (i) => W * (i + 0.5) / 3;
-    let lane = 1, shipX = laneX(1), speed = 150;
+    const slow = MQ.slow(); // 🐢 a constant, gentle speed
+    let lane = 1, shipX = laneX(1), speed = slow ? 105 : 150;
     const stars = Array.from({ length: 90 }, () => ({ x: Math.random(), y: Math.random(), z: 0.3 + Math.random() * 0.7 }));
     let particles = [], flash = 0, shake = 0, msg = null;
     let gate = null, round = null, running = false, over = false, last = 0;
@@ -120,7 +121,7 @@
       if (ok) {
         correct++; combo++; bestCombo = Math.max(bestCombo, combo);
         score += 10 * Math.min(combo, 5);
-        speed = Math.min(360, speed + 12);
+        if (!slow) speed = Math.min(360, speed + 12);
         burst(shipX, shipY - 30, '#3ddc97', 26);
         msg = { text: combo >= 3 ? `🔥 Combo x${combo}!` : 'Great!', color: '#8dffc8', t: 1 };
         MQ.sfx.good();
@@ -128,7 +129,7 @@
         lives--; combo = 0;
         mistakes.push(round.item);
         flash = 1; shake = 1;
-        speed = Math.max(130, speed - 30);
+        if (!slow) speed = Math.max(130, speed - 30);
         burst(shipX, shipY - 30, '#ff6b81', 18);
         msg = { text: round.reveal, color: '#ffd34d', t: 1.6 };
         MQ.sfx.bad();

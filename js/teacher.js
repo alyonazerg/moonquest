@@ -5,17 +5,102 @@
   const input = (attrs) => h('input', Object.assign({ class: 'field' }, attrs));
 
   // ---------- progress labels ----------
-  function keyLabel(key, setsById) {
-    const [where, game] = [key.slice(0, key.lastIndexOf('/')), key.slice(key.lastIndexOf('/') + 1)];
-    const g = games[game] ? games[game].title : game;
+  function whereLabel(where, setsById) {
     if (where.startsWith('set:')) {
       const s = setsById[where.slice(4)];
-      return `📝 ${s ? s.title : 'удалённый набор'} · ${g}`;
+      return `📝 ${s ? s.title : 'удалённый набор'}`;
     }
     const [cid, unitId] = where.split('/');
     const c = courses[cid];
     const u = c && c.units.find(x => x.id === unitId);
-    return `${c ? c.icon + ' ' + c.title : cid} · ${u ? u.title : unitId} · ${g}`;
+    return `${c ? c.icon + ' ' + c.title : cid} · ${u ? u.title : unitId}`;
+  }
+  const gameTitle = (game) => games[game] ? games[game].title : game;
+  const splitKey = (key) => [key.slice(0, key.lastIndexOf('/')), key.slice(key.lastIndexOf('/') + 1)];
+  function keyLabel(key, setsById) {
+    const [where, game] = splitKey(key);
+    return `${whereLabel(where, setsById)} · ${gameTitle(game)}`;
+  }
+  const pct = (c, t) => t ? Math.round(c / t * 100) : null;
+  const VPR_MARKS = [[22, 5], [15, 4], [10, 3], [0, 2]];
+  const vprMark = (c, n) => n === 25 ? VPR_MARKS.find(([min]) => c >= min)[1] : null;
+
+  // summary per unit / set: how many answers were right, average stars
+  function unitSummary(rows, setsById) {
+    const by = {};
+    rows.forEach(p => {
+      const [where] = splitKey(p.key);
+      const g = by[where] || (by[where] = { where, c: 0, t: 0, stars: 0, games: 0, last: '' });
+      g.c += +p.correct || 0; g.t += +p.total || 0; g.stars += +p.stars || 0; g.games++;
+      if (String(p.updated_at) > g.last) g.last = String(p.updated_at);
+    });
+    const list = Object.values(by).sort((a, b) => b.last.localeCompare(a.last));
+    if (!list.length) return null;
+    return h('div', { class: 'table-wrap' }, h('table', { class: 'table' },
+      h('tr', {}, h('th', {}, 'Юнит / набор'), h('th', {}, 'Верно'), h('th', {}, 'Игр'), h('th', {}, 'Ср. звёзды'), h('th', {}, 'Последний раз')),
+      list.map(g => {
+        const k = pct(g.c, g.t);
+        return h('tr', {},
+          h('td', {}, whereLabel(g.where, setsById)),
+          h('td', { class: k == null ? 'muted' : k < 70 ? 'weak' : 'okk' }, k == null ? '—' : `${k}% (${g.c}/${g.t})`),
+          h('td', {}, String(g.games)),
+          h('td', {}, (g.stars / g.games).toFixed(1) + ' ★'),
+          h('td', { class: 'muted' }, fmtDate(g.last)));
+      })));
+  }
+
+  // the latest cards in the mistakes deck, grouped by kind
+  function weakSpots(items) {
+    const KIND = { word: '🔤 Слова', verb: '🔁 Глаголы', qa: '✏️ Грамматика и вопросы', sent: '📜 Предложения' };
+    const list = Object.values(items || {}).sort((a, b) => (b.added || 0) - (a.added || 0));
+    if (!list.length) return h('p', { class: 'muted' }, 'Колода ошибок пустая — отлично!');
+    const text = (x) => {
+      const it = x.item || {};
+      if (x.kind === 'verb') return `${it.base} – ${it.v2} – ${it.v3}`;
+      if (x.kind === 'qa') return `${it.q} → ${it.a}`;
+      return it.ru ? `${it.en} (${it.ru})` : it.en;
+    };
+    return h('div', {}, Object.entries(KIND).map(([kind, label]) => {
+      const of = list.filter(x => x.kind === kind);
+      if (!of.length) return null;
+      return h('div', { style: 'margin:6px 0' }, h('b', {}, `${label} (${of.length}): `),
+        h('span', {}, of.slice(0, 12).map(text).join(' · ') + (of.length > 12 ? ' …' : '')));
+    }));
+  }
+
+  // VPR / unit test results over time: bars with points and marks
+  function vprHistory(rows, setsById) {
+    const tests = rows.filter(p => p.key.endsWith('/vpr') && p.data && Array.isArray(p.data.history) && p.data.history.length);
+    if (!tests.length) return null;
+    return h('div', {}, h('h3', {}, '📝 История ВПР и тестов'), tests.map(p => {
+      const hist = p.data.history.slice(-12);
+      const max = Math.max(...hist.map(x => x.n || 1));
+      return h('div', { style: 'margin-bottom:12px' },
+        h('div', { class: 'muted' }, whereLabel(splitKey(p.key)[0], setsById)),
+        h('div', { class: 'hist', style: 'margin-top:22px' }, hist.map(x => {
+          const m = vprMark(x.c, x.n);
+          const bar = h('div', { class: 'bar', title: `${x.c}/${x.n} · ${fmtDate(x.t)}`, style: `height:${Math.max(4, Math.round((x.c / max) * 100))}%` },
+            h('span', {}, m ? `${x.c}·«${m}»` : `${x.c}/${x.n}`));
+          return bar;
+        })),
+        h('div', { class: 'muted', style: 'font-size:.8em' }, `${fmtDate(hist[0].t)} → ${fmtDate(hist[hist.length - 1].t)}`));
+    }));
+  }
+
+  // CSV for Excel / Google Sheets: semicolon separator and BOM so Cyrillic opens correctly
+  function downloadCsv(name, rows, setsById) {
+    const q = (v) => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+    const head = ['Юнит / набор', 'Игра', 'Звёзды', 'Верно', 'Всего', '%', 'Последний раз', 'Сыграно раз', 'Ошибки'];
+    const lines = rows.map(p => {
+      const [where, game] = splitKey(p.key);
+      const mist = (p.mistakes || []).map(m => typeof m === 'string' ? m : (m && (m.en || m.q || m.base)) || '').filter(Boolean);
+      return [whereLabel(where, setsById), gameTitle(game), p.stars || 0, p.correct ?? '', p.total ?? '', pct(p.correct, p.total) ?? '',
+        p.updated_at ? new Date(p.updated_at).toLocaleString('ru-RU') : '', p.plays || '', mist.join(', ')].map(q).join(';');
+    });
+    const blob = new Blob(['\ufeff' + [head.map(q).join(';'), ...lines].join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = h('a', { href: URL.createObjectURL(blob), download: `progress-${name}-${new Date().toISOString().slice(0, 10)}.csv` });
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   const fmtDate = (d) => d ? new Date(d).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
   const stars = (n) => '★'.repeat(n) + '☆'.repeat(3 - n);
@@ -164,8 +249,15 @@
           return h('label', { class: 'check' }, cb, ` ${({ verbs: '🔁', jeopardy: '🏆', vpr: '📝' }[set.kind] || '📝')} ${set.title} `, h('span', { class: 'muted' }, `(${set.items.length})`));
         }) : h('p', { class: 'muted' }, 'Наборов пока нет. Создайте их во вкладке «Наборы карточек».')),
       h('div', { class: 'panel' },
-        h('h2', {}, '📈 Прогресс'),
-        h('p', { class: 'muted' }, `🔁 Колода ошибок: ${deckSize} карточек`),
+        h('div', { class: 'row', style: 'justify-content:space-between;align-items:center' }, h('h2', {}, '📈 Прогресс'),
+          rows.length ? h('button', { onclick: () => downloadCsv(s.name, rows, setsById) }, '⬇️ Скачать CSV') : null),
+        rows.length ? h('h3', {}, '📊 Сводка по юнитам') : null,
+        unitSummary(rows, setsById),
+        rows.length ? h('p', { class: 'hint' }, 'Красным — меньше 70% верных ответов: эту тему стоит повторить.') : null,
+        vprHistory(rows, setsById),
+        h('h3', {}, `🔁 Слабые места — колода ошибок (${deckSize})`),
+        weakSpots(deckRow && deckRow.data),
+        rows.length ? h('h3', {}, '🎮 Все игры') : null,
         rows.length ? h('div', { class: 'table-wrap' }, h('table', { class: 'table' },
           h('tr', {}, h('th', {}, 'Игра'), h('th', {}, 'Звёзды'), h('th', {}, 'Последний раз'), h('th', {}, 'Ошибки')),
           rows.map(p => h('tr', {},

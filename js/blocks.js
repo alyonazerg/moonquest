@@ -12,7 +12,8 @@
     items: u => MQ.puzzleWords(u, { max: 10 }),
     run(ctx, items) {
       const total = items.length;
-      let wi = 0, pos = 0, score = 0, solved = 0, speed = 55, over = false, running = false, last = 0, spawnT = 0;
+      const slow = MQ.slow();
+      let wi = 0, pos = 0, score = 0, solved = 0, speed = slow ? 38 : 55, over = false, running = false, last = 0, spawnT = 0;
       let wordHadMistake = false;
       const mistakes = [];
       const stack = Array(COLS).fill(0); // stones per column
@@ -111,7 +112,7 @@
         msg = { text: '🎉 ' + x.shown, t: 1.3, color: '#8dffc8' };
         falling = [];
         wi++; pos = 0; wordHadMistake = false;
-        speed = Math.min(150, speed + 9);
+        if (!slow) speed = Math.min(150, speed + 9);
         if (wi >= total) return end(true);
         updateTop();
       }

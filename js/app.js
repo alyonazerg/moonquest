@@ -82,6 +82,9 @@
         h('span', { class: 'muted' }, 'Theme:'),
         ['space', 'magic'].map(t => h('button', { class: 'chip' + (MQ.theme(store.me.id) === t ? ' on' : ''), onclick: () => { MQ.setTheme(store.me.id, t); route(); } },
           t === 'space' ? '🚀 Space' : '🪄 Magic school'))),
+      h('div', { class: 'row theme-row' },
+        h('button', { class: 'chip' + (MQ.slow() ? ' on' : ''), title: 'No time limits, slower games', onclick: () => { MQ.setSlow(!MQ.slow()); route(); } }, MQ.slow() ? '🐢 No timers: on' : '🐢 No timers: off'),
+        h('button', { class: 'chip' + (MQ.animOn() ? ' on' : ''), title: 'Moving background and effects', onclick: () => { MQ.setAnim(!MQ.animOn()); route(); } }, MQ.animOn() ? '✨ Animation: on' : '✨ Animation: off')),
       now.length ? h('div', { class: 'panel now' },
         h('div', { class: 'muted' }, '📍 Now we study'),
         now.map(o => h('div', { class: 'now-row' },
@@ -327,7 +330,13 @@
       finish(correct, total, mistakes) {
         const stars = MQ.starsFor(correct, total);
         if (stars >= 2) setTimeout(() => MQ.sfx.win(), 250);
-        if (!itemsOverride || label !== 'mistakes only') store.record(c.key(u, gameId), { stars, correct, total, mistakes });
+        // tests keep a history of results (date, points) for the teacher
+        let data;
+        if (gameId === 'vpr') {
+          const prev = store.deck(c.key(u, gameId));
+          data = Object.assign({}, prev, { history: [...(prev.history || []), { t: Date.now(), c: correct, n: total }].slice(-30) });
+        }
+        if (!itemsOverride || label !== 'mistakes only') store.record(c.key(u, gameId), { stars, correct, total, mistakes, data });
         if (gameId !== 'mdeck' && gameId !== 'vpr' && mistakes.length) MQ.mistakes.add(mistakes).catch(e => console.warn('mistakes', e));
         root.innerHTML = '';
         root.append(h('div', { class: 'panel' },

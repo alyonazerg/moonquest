@@ -236,7 +236,8 @@
     items: u => whackTargets(u),
     run(ctx, items) {
       const magic = MQ.isMagic();
-      let ti = 0, hits = 0, time = 60, running = false, timer = null, spawnT = null;
+      const slow = MQ.slow(); // 🐢 no time limit, words stay longer
+      let ti = 0, hits = 0, time = slow ? Infinity : 60, running = false, timer = null, spawnT = null;
       const mistakes = [], wrongFor = new Set();
       const prompt = h('div', { class: 'wh-prompt' });
       const hud = h('div', { class: 'rn-hud' });
@@ -255,7 +256,7 @@
       const cur = () => items[ti];
       function updHud() {
         hud.innerHTML = '';
-        hud.append(h('span', {}, `⏱ ${time}s`), h('span', {}, `⭐ ${hits}`), h('span', {}, ''), h('span', {}, `${Math.min(ti + 1, items.length)} / ${items.length}`));
+        hud.append(h('span', {}, slow ? '🐢 no timer' : `⏱ ${time}s`), h('span', {}, `⭐ ${hits}`), h('span', {}, ''), h('span', {}, `${Math.min(ti + 1, items.length)} / ${items.length}`));
       }
       function setPrompt() {
         prompt.innerHTML = '';
@@ -274,7 +275,7 @@
         x.word = !showing && Math.random() < 0.45 ? t.answer : sample(t.pool, 1)[0];
         x.mole.querySelector('.wh-word').textContent = x.word;
         x.mole.classList.remove('hit', 'miss'); x.mole.classList.add('up');
-        const stay = Math.max(1100, 2000 - ti * 70);
+        const stay = slow ? 3200 : Math.max(1100, 2000 - ti * 70);
         x.until = Date.now() + stay;
         setTimeout(() => { if (x.until <= Date.now() && x.word) { x.mole.classList.remove('up'); x.word = null; } }, stay);
       }
@@ -301,7 +302,7 @@
       function start() {
         overlay.hidden = true; running = true; updHud(); setPrompt();
         spawnT = setInterval(() => { if (!field.isConnected) return stop(); popOne(); }, 650);
-        timer = setInterval(() => { if (!field.isConnected) return stop(); time--; updHud(); if (time <= 0) end(); }, 1000);
+        if (!slow) timer = setInterval(() => { if (!field.isConnected) return stop(); time--; updHud(); if (time <= 0) end(); }, 1000);
         popOne();
       }
       function stop() { clearInterval(spawnT); clearInterval(timer); running = false; }
