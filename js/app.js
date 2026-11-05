@@ -97,6 +97,11 @@
         const ids = gameIds(u);
         location.hash = `${c.href}/${u.id}/${ids[Math.floor(Math.random() * ids.length)]}`;
       } }, '🎲 Surprise me: random game')),
+      MQ.mistakes.cards().length ? h('a', { class: 'panel mistakes-tile', href: '#/mistakes' },
+        h('div', { class: 'big' }, '🔁'),
+        h('div', {}, h('div', { class: 'title' }, 'My mistakes'),
+          h('div', { class: 'muted' }, MQ.mistakes.dueCount() ? `${MQ.mistakes.dueCount()} cards to practise today` : 'All done for today ✓')),
+        h('span', { class: 'btn primary' }, '▶')) : null,
       tasks.length ? h('h2', {}, '🗂 My cards & tasks') : null,
       tasks.length ? h('div', { class: 'grid' }, tasks.map(s => {
         const u = MQ.sets.setToUnit(s);
@@ -241,9 +246,7 @@
       c.folder ? h('a', { href: c.href, class: 'back' }, '← ' + c.title) : h('a', { href: '#/', class: 'back' }, '← Home'),
       h('h1', {}, `${u.icon || '🪐'} ${u.title}`),
       h('p', { class: 'muted' }, u.subtitle || ''),
-      u.vpr && c.id !== 'vpr' ? h('div', { class: 'panel unit-test' },
-        h('div', {}, h('div', { class: 'title' }, '📝 Unit test'), h('div', { class: 'muted' }, 'Формат ВПР: аудирование, чтение, грамматика, анкета · 25 баллов')),
-        h('a', { class: 'btn primary', href: `${c.href}/${u.id}/vpr` }, '▶ Пройти тест')) : null,
+      unitPath(c, u),
       extraCards(c, u),
       u.note ? h('div', { class: 'panel note' }, h('div', { class: 'big-note' }, '💡'), h('p', {}, u.note)) : null,
       (u.grammar || []).length ? h('div', { class: 'panel left' },
@@ -258,10 +261,12 @@
           u.verbs.map(v => h('tr', {},
             h('td', {}, v.base), h('td', {}, v.v2), h('td', {}, v.v3),
             h('td', {}, h('button', { class: 'chip', onclick: () => MQ.speak(`${v.base}, ${v.v2}, ${v.v3}`) }, '🔊')))))) : null,
-      h('div', { class: 'row', style: 'margin-bottom:12px' }, h('button', { class: 'primary', onclick: () => {
-        const ids = gameIds(u);
-        location.hash = `${c.href}/${u.id}/${ids[Math.floor(Math.random() * ids.length)]}`;
-      } }, '🎲 Random game')),
+      h('details', { class: 'panel more-games', open: pathSteps(c, u).length < 2 },
+        h('summary', {}, `🎮 More games (${gameIds(u).length})`),
+        h('div', { class: 'row', style: 'margin:10px 0 12px' }, h('button', { onclick: () => {
+          const ids = gameIds(u);
+          location.hash = `${c.href}/${u.id}/${ids[Math.floor(Math.random() * ids.length)]}`;
+        } }, '🎲 Random game')),
       h('div', { class: 'grid' }, gameIds(u).map(id => {
         const g = games[id];
         return h('a', { class: 'tile', href: `${c.href}/${u.id}/${id}` },
@@ -269,8 +274,47 @@
           h('div', { class: 'title' }, MQ.gt(id, g).title),
           h('div', { class: 'muted' }, MQ.gt(id, g).desc),
           h('div', { class: 'stars' }, starStr(store.getStars(c.key(u, id)))));
-      })),
+      }))),
     );
+  }
+
+  // ---------- unit path: a few steps in a good order, one main button ----------
+  const PATH = ['flash', 'vflash', 'listen', 'match', 'spell', 'vspell', 'quiz', 'vchoose', 'order', 'vtype', 'gapfill'];
+  function pathSteps(c, u) {
+    const steps = PATH.filter(id => games[id] && games[id].available(u)).slice(0, 5);
+    if (u.vpr && c.id !== 'vpr') steps.push('vpr');
+    return steps;
+  }
+  function unitPath(c, u) {
+    const steps = pathSteps(c, u);
+    if (steps.length < 2) return null;
+    const done = (id) => store.getStars(c.key(u, id)) >= 2;
+    const next = steps.find(id => !done(id));
+    const count = steps.filter(done).length;
+    const t = (id) => id === 'vpr' ? { icon: '📝', title: 'Unit test' } : MQ.gt(id, games[id]);
+    return h('div', { class: 'panel unit-path' },
+      h('div', { class: 'row space' }, h('h2', { style: 'margin:0' }, '🧭 Unit path'), h('span', { class: 'muted' }, `${count} / ${steps.length} done`)),
+      h('div', { class: 'progress' }, h('div', { style: `width:${Math.round(count / steps.length * 100)}%` })),
+      h('ol', { class: 'path-steps' }, steps.map((id, i) => h('li', { class: done(id) ? 'done' : id === next ? 'now' : '' },
+        h('a', { href: `${c.href}/${u.id}/${id}` },
+          h('span', { class: 'step-dot' }, done(id) ? '✓' : String(i + 1)),
+          h('span', { class: 'step-ico' }, t(id).icon), h('span', { class: 'step-name' }, t(id).title))))),
+      h('div', { class: 'row', style: 'margin-top:12px' }, next
+        ? h('a', { class: 'btn primary big-cta', href: `${c.href}/${u.id}/${next}` }, `▶ ${count ? 'Continue' : 'Start'}: ${t(next).title}`)
+        : h('div', { class: 'feedback good' }, '🎉 Path complete! Play any game below.')),
+      h('p', { class: 'hint' }, 'A step is done with ★★ or more.'));
+  }
+
+  // ---------- "My mistakes" deck ----------
+  const MISTAKES = { id: 'mistakes', title: 'My mistakes', icon: '🔁', href: '#', noUnit: true, key: () => MQ.mistakes.KEY_DECK };
+  function mistakesScreen() {
+    if (!store.me) { location.replace('#/who'); return; }
+    if (!MQ.mistakes.cards().length) {
+      app.append(h('a', { href: '#/', class: 'back' }, '← Home'), h('div', { class: 'panel narrow' },
+        h('div', { class: 'emoji' }, '🌟'), h('h2', {}, 'No mistakes yet!'), h('p', { class: 'muted' }, 'Words you get wrong in any game will come here.')));
+      return;
+    }
+    play(MISTAKES, { id: '', title: 'Home' }, 'mdeck');
   }
 
   function play(c, u, gameId, itemsOverride, label) {
@@ -284,6 +328,7 @@
         const stars = MQ.starsFor(correct, total);
         if (stars >= 2) setTimeout(() => MQ.sfx.win(), 250);
         if (!itemsOverride || label !== 'mistakes only') store.record(c.key(u, gameId), { stars, correct, total, mistakes });
+        if (gameId !== 'mdeck' && gameId !== 'vpr' && mistakes.length) MQ.mistakes.add(mistakes).catch(e => console.warn('mistakes', e));
         root.innerHTML = '';
         root.append(h('div', { class: 'panel' },
           h('div', { class: 'emoji' }, stars === 3 ? '🏆' : stars === 2 ? MQ.themed('good') : '🌱'),
@@ -299,7 +344,7 @@
     };
     const tg = MQ.gt(gameId, g);
     // words tapped in texts go to this unit (ВПР variants: to the unit the student studies now)
-    MQ.pageUnitKey = c === SETS ? (u.unitKey || null) : c.id === 'vpr' ? null : `${c.id}/${u.id}`;
+    MQ.pageUnitKey = c === SETS ? (u.unitKey || null) : (c.id === 'vpr' || c.noUnit) ? null : `${c.id}/${u.id}`;
     app.append(
       // compact header so the game fits on one screen
       h('div', { class: 'game-head' },
@@ -342,6 +387,7 @@
       if (top === 'who') { await store.setMe(null); renderWho(); await whoScreen(); }
       else if (top === 'login' && a) await loginLink(a, decodeURIComponent(b || ''));
       else if (top === 'add') await addScreen(a, b);
+      else if (top === 'mistakes') mistakesScreen();
       else if (top === 'teacher') await MQ.teacher.route(app, parts);
       else if (top === 's' && a) await setRoute(a, b);
       else if (top === 'c' && courses[a]) {

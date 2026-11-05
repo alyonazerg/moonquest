@@ -61,6 +61,28 @@
   }
 
   // cram = practise every card now ("practise anyway", "practise mistakes")
+  // a grammar question (or a quiz question): front = the gap, back = the answer and the full sentence
+  function qaFaces(it) {
+    const full = it.q.includes('___') ? it.q.replace('___', it.a) : '';
+    const [pre, ...rest] = it.q.split('___');
+    return {
+      front: [it.pic ? h('div', { class: 'emoji card-pic small' }, it.pic) : null,
+        h('div', { class: 'card-q' }, pre, it.q.includes('___') ? h('b', { class: 'gap' }, ' ___ ') : '', rest.join('___')),
+        it.topic ? h('div', { class: 'card-sub' }, '📘 ' + it.topic) : null],
+      back: [h('div', { class: 'card-ru' }, it.a), full ? h('div', { class: 'card-example' }, full) : h('div', { class: 'card-example' }, it.q)],
+      say: /^[\x00-\x7F’'\s.,?!-]+$/.test(full || it.a) ? (full || it.a) : '',
+    };
+  }
+  // a sentence: front = the words mixed up, back = the sentence
+  function sentFaces(s) {
+    const words = shuffle(s.en.replace(/[.?!]$/, '').split(' '));
+    return {
+      front: [s.pic ? h('div', { class: 'emoji card-pic small' }, s.pic) : null, h('div', { class: 'card-sub' }, 'Make a sentence:'), h('div', { class: 'card-q' }, words.join(' · '))],
+      back: [h('div', { class: 'card-q' }, s.en)],
+      say: s.en,
+    };
+  }
+
   function runAnki(ctx, cards, cram) {
     const key = ctx.key;
     const deck = store.deck(key);
@@ -143,7 +165,8 @@
         return ctx.finish(good, ids.length, mistakes);
       }
       current = queue[0];
-      current.faces = current.faces || (current.verb ? verbFaces(current.item) : wordFaces(current.item));
+      current.faces = current.faces || (current.verb || current.kind === 'verb' ? verbFaces(current.item)
+        : current.kind === 'qa' ? qaFaces(current.item) : current.kind === 'sent' ? sentFaces(current.item) : wordFaces(current.item));
       const left = new Set(queue.map(c => c.id)).size;
       counts.innerHTML = '';
       counts.append(h('span', {}, `🃏 Cards left: ${left}`), h('span', {}, `✔ ${Object.keys(firstRating).length} / ${total}`));
@@ -171,6 +194,14 @@
     available: u => (u.vocab || []).length > 0,
     items: u => u.vocab.map(w => ({ id: w.en, item: w })),
     run: (ctx, items) => runAnki(ctx, items.map(x => x.item && x.id ? x : { id: x.en, item: x }), ctx.override),
+  };
+  // the "My mistakes" deck (opened from the home screen, not listed in units)
+  games.mdeck = {
+    title: 'My mistakes', icon: '🔁', desc: 'What you got wrong comes back at the right time. Flip, then rate yourself.',
+    available: () => false,
+    items: () => MQ.mistakes.cards(),
+    // items are cards; after "practise mistakes" they are raw items again, so turn them back into cards
+    run: (ctx, items) => runAnki(ctx, items.map(x => (x.id && x.item ? x : MQ.mistakes.toCard(x))).filter(Boolean).map(c => Object.assign({ verb: c.kind === 'verb' }, c)), ctx.override),
   };
   games.vflash = {
     title: 'Verb flashcards', icon: '🃏', desc: 'Anki style: say the three forms, flip and check.',

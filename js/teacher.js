@@ -143,7 +143,9 @@
     const course = h('select', { class: 'field' }, Object.entries(COURSE_NAMES).map(([v, l]) => h('option', { value: v }, l)));
     course.value = s.course || '';
     const nowUnit = unitChecklist(s.current_unit || '');
-    const rows = progress.slice().sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)));
+    const deckRow = progress.find(p => p.key === 'mistakes:items');
+    const deckSize = deckRow && deckRow.data ? Object.keys(deckRow.data).length : 0;
+    const rows = progress.filter(p => !p.key.startsWith('mistakes:')).sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)));
     app.append(
       h('a', { href: '#/teacher', class: 'muted' }, '← Все ученицы'),
       h('div', { class: 'panel' },
@@ -163,6 +165,7 @@
         }) : h('p', { class: 'muted' }, 'Наборов пока нет. Создайте их во вкладке «Наборы карточек».')),
       h('div', { class: 'panel' },
         h('h2', {}, '📈 Прогресс'),
+        h('p', { class: 'muted' }, `🔁 Колода ошибок: ${deckSize} карточек`),
         rows.length ? h('div', { class: 'table-wrap' }, h('table', { class: 'table' },
           h('tr', {}, h('th', {}, 'Игра'), h('th', {}, 'Звёзды'), h('th', {}, 'Последний раз'), h('th', {}, 'Ошибки')),
           rows.map(p => h('tr', {},
