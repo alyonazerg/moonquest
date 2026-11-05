@@ -190,7 +190,12 @@
     header(app, 'students');
     const [students, assigns] = await Promise.all([store.students(), store.assignments()]);
     // every student gets a personal code
-    for (const st of students) if (!st.pin) { st.pin = store.newPin(); await store.saveStudent(st); }
+    // every student gets her own code, and no two students share one
+    const seen = new Set();
+    for (const st of students) {
+      if (!st.pin || seen.has(st.pin)) { st.pin = store.newPin(students); await store.saveStudent({ id: st.id, name: st.name, course: st.course, pin: st.pin }); }
+      seen.add(st.pin);
+    }
     const name = input({ placeholder: 'Имя ученицы' });
     const course = h('select', { class: 'field' }, Object.entries(COURSE_NAMES).map(([v, l]) => h('option', { value: v }, l)));
     app.append(
@@ -199,7 +204,7 @@
         h('div', { class: 'row' }, name, course,
           h('button', { class: 'primary', onclick: async () => {
             if (!name.value.trim()) return;
-            await store.saveStudent({ name: name.value.trim(), course: course.value, pin: store.newPin() });
+            await store.saveStudent({ name: name.value.trim(), course: course.value, pin: store.newPin(students) });
             MQ.route();
           } }, '＋ Добавить'))),
       students.length ? h('div', { class: 'grid' }, students.map(s => h('a', { class: 'tile', href: `#/teacher/st/${s.id}` },
@@ -236,10 +241,15 @@
       h('div', { class: 'panel' },
         h('h2', {}, '👧 ' + s.name),
         h('div', { class: 'row' }, nameF, course, h('span', {}, '🔑'), pinF,
-          h('button', { class: 'primary', onclick: async () => { await store.saveStudent({ id, name: nameF.value.trim() || s.name, course: course.value, pin: pinF.value.trim() || s.pin, current_unit: nowUnit.getValue() }); toast('Сохранено'); MQ.route(); } }, '💾 Сохранить'),
+          h('button', { class: 'primary', onclick: async () => {
+            const pin = pinF.value.trim() || s.pin;
+            const twin = students.find(x => x.id !== id && x.pin === pin);
+            if (twin) { toast(`Код ${pin} уже у ученицы ${twin.name}. Придумайте другой.`); return; }
+            if (!/^\d{4,8}$/.test(pin)) { toast('Код — от 4 до 8 цифр.'); return; }
+            await store.saveStudent({ id, name: nameF.value.trim() || s.name, course: course.value, pin, current_unit: nowUnit.getValue() }); toast('Сохранено'); MQ.route(); } }, '💾 Сохранить'),
           h('button', { class: 'ghost', onclick: async () => { if (confirm(`Удалить ${s.name} и весь её прогресс?`)) { await store.deleteStudent(id); location.hash = '#/teacher'; } } }, '🗑 Удалить')),
         h('label', { class: 'lbl' }, '📍 Сейчас проходим — можно отметить несколько (сюда прикрепляются новые карточки ученицы)'), nowUnit,
-        h('p', { class: 'hint' }, `Чтобы войти, ${s.name} выбирает своё имя и вводит код ${s.pin || ''}. Или отправьте ей личную ссылку — она откроет сайт сразу под её именем.`),
+        h('p', { class: 'hint' }, `Чтобы войти, ${s.name} вводит только свой код ${s.pin || ''} — имён на сайте не видно. Или отправьте ей личную ссылку — она откроет сайт сразу под её именем.`),
         h('div', { class: 'row' }, linkBtn)),
       h('div', { class: 'panel' },
         h('h2', {}, '🗂 Назначенные наборы'),

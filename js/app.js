@@ -21,52 +21,44 @@
 
   // ---------- screens ----------
   async function whoScreen() {
-    const students = await store.students();
-    const enter = async (s, pin) => { await store.setMe({ id: s.id, name: s.name, course: s.course, pin: pin || s.pin || '' }); location.hash = '#/'; };
-    // Ask for the personal code before entering
-    const pick = (s) => {
-      if (store.mode === 'local' && !s.pin) return enter(s);
-      const code = h('input', { class: 'field big-field', type: 'password', inputmode: 'numeric', autocomplete: 'off', maxlength: 8, placeholder: '• • • •' });
-      const msg = h('div', { class: 'feedback bad' });
-      const go = async () => {
-        msg.textContent = '';
-        try { if (await store.checkPin(s.id, code.value)) return enter(s, code.value.trim()); msg.textContent = 'Wrong code. Try again or ask your teacher.'; }
-        catch (e) { msg.textContent = '⚠️ ' + e.message; }
-        code.value = ''; code.focus();
-      };
-      code.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
-      app.innerHTML = '';
-      app.append(
-        h('div', { class: 'emoji' }, '🔐'),
-        h('h1', {}, `Hi, ${s.name}!`),
-        h('div', { class: 'panel narrow' }, h('p', {}, 'Enter your secret code:'), code, msg,
-          h('div', { class: 'row' }, h('a', { class: 'btn ghost', href: '#/who', onclick: (e) => { e.preventDefault(); MQ.route(); } }, '← Back'), h('button', { class: 'primary', onclick: go }, "Let's go! 🚀"))),
-      );
-      setTimeout(() => code.focus(), 50);
+    const enter = async (s, pin) => { await store.setMe({ id: s.id, name: s.name, course: s.course, current_unit: s.current_unit, pin: pin || s.pin || '' }); location.hash = '#/'; };
+    // A student types only her personal code: names are never shown on this screen
+    const code = h('input', { class: 'field big-field', type: 'password', inputmode: 'numeric', autocomplete: 'off', maxlength: 8, placeholder: '• • • •' });
+    const msg = h('div', { class: 'feedback bad' });
+    const go = async () => {
+      msg.textContent = '';
+      const p = code.value.trim();
+      if (!p) { code.focus(); return; }
+      try { const s = await store.loginByPin(p); if (s) return enter(s, p); msg.textContent = 'Wrong code. Try again or ask your teacher.'; }
+      catch (e) { msg.textContent = '⚠️ ' + e.message; }
+      code.value = ''; code.focus();
     };
+    code.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+    // without the database (one browser only) a new player can still start with a name
     const nameInput = h('input', { class: 'field big-field', placeholder: 'Your name', maxlength: 30 });
     const addSelf = async () => {
       const name = nameInput.value.trim();
       if (!name) return;
-      const existing = students.find(s => s.name.toLowerCase() === name.toLowerCase());
-      if (existing) pick(existing); else enter(await store.saveStudent({ name }));
+      const students = await store.students();
+      if (students.some(s => s.name.toLowerCase() === name.toLowerCase())) { msg.textContent = 'This name is already here. Enter your code.'; code.focus(); return; }
+      enter(await store.saveStudent({ name, pin: store.newPin(students) }));
     };
     nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addSelf(); });
     app.append(
-      h('div', { class: 'emoji' }, '👩‍🚀'),
+      h('div', { class: 'emoji' }, '🔐'),
       h('h1', {}, "Who's playing?"),
-      students.length ? h('div', { class: 'grid names' }, students.map(s =>
-        h('button', { class: 'tile name-btn', onclick: () => pick(s) }, h('div', { class: 'big' }, '🧑‍🚀'), h('div', { class: 'title' }, s.name)))) : null,
+      h('div', { class: 'panel narrow' }, h('p', {}, 'Enter your secret code:'), code, msg, h('button', { class: 'primary', onclick: go }, "Let's go! 🚀"),
+        h('p', { class: 'muted' }, 'No code? Ask your teacher.')),
       store.mode === 'local'
-        ? h('div', { class: 'panel narrow' }, h('p', {}, students.length ? 'New here? Write your name:' : 'What is your name?'), nameInput, h('button', { class: 'primary', onclick: addSelf }, "Let's go! 🚀"))
-        : (students.length ? null : h('p', { class: 'muted' }, 'Ask your teacher to add your name.')),
+        ? h('details', { class: 'panel narrow' }, h('summary', {}, 'New player? Write your name'), nameInput, h('button', { class: 'primary', onclick: addSelf }, "Let's go! 🚀"))
+        : null,
     );
+    setTimeout(() => code.focus(), 50);
   }
 
   async function home() {
     if (!store.me) { location.replace('#/who'); return; }
-    const [sets, assigns, students] = await Promise.all([store.sets(), store.assignments(), store.students()]);
-    const fresh = students.find(s => s.id === store.me.id);
+    const [sets, assigns, fresh] = await Promise.all([store.sets(), store.assignments(), store.meInfo(store.me.id).catch(e => { console.warn('me', e); return null; })]);
     if (fresh) Object.assign(store.me, { name: fresh.name, course: fresh.course, current_unit: fresh.current_unit });
     const mine = new Set(assigns.filter(a => a.student_id === store.me.id).map(a => a.set_id));
     const tasks = sets.filter(s => mine.has(s.id) || s.student_id === store.me.id);
@@ -376,8 +368,10 @@
 
   // Personal link from the teacher: #/login/<student id>/<code>
   async function loginLink(id, pin) {
-    const s = (await store.students()).find(x => x.id === id);
-    if (s && await store.checkPin(id, pin)) { await store.setMe({ id: s.id, name: s.name, course: s.course, pin }); location.replace('#/'); return; }
+    try {
+      const s = await store.loginByPin(pin);
+      if (s && s.id === id) { await store.setMe({ id: s.id, name: s.name, course: s.course, current_unit: s.current_unit, pin }); location.replace('#/'); return; }
+    } catch (e) { MQ.toast('⚠️ ' + e.message); }
     location.replace('#/who');
   }
 

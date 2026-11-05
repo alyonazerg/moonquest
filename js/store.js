@@ -21,6 +21,12 @@
     async signOut() {},
     async students() { return load('students', []); },
     async checkPin(id, pin) { const s = load('students', []).find(x => x.id === id); return !!s && (!s.pin || s.pin === String(pin).trim()); },
+    async loginByPin(pin) {
+      const p = String(pin).trim(), all = load('students', []).filter(x => p && x.pin === p);
+      if (all.length > 1) throw new Error('Two students have the same code. Ask your teacher.');
+      return all[0] || null;
+    },
+    async meInfo(id) { return load('students', []).find(x => x.id === id) || null; },
     async saveStudent(s) {
       const all = load('students', []);
       if (!s.id) s.id = uid();
@@ -97,9 +103,18 @@
     isTeacher: () => !!session,
     async signIn(email, password) { must(await db.auth.signInWithPassword({ email, password })); return true; },
     async signOut() { await db.auth.signOut(); },
-    // Students (not signed in) can see only names; PIN codes are visible to the teacher only.
-    async students() { return must(await db.from('students').select(session ? '*' : 'id,name,course,current_unit').order('name')); },
+    // Only the teacher sees the list of students. A student logs in with her code only.
+    async students() { return session ? must(await db.from('students').select('*').order('name')) : []; },
     async checkPin(id, pin) { return !!must(await db.rpc('student_login', { sid: id, p: String(pin).trim() })); },
+    async loginByPin(pin) {
+      const r = await db.rpc('login_by_pin', { p: String(pin).trim() });
+      if (noFunction(r)) throw new Error('Учителю: выполните supabase/005_pin_login.sql в Supabase (см. SETUP.md).');
+      return must(r) || null;
+    },
+    async meInfo(id) {
+      const r = await db.rpc('student_info', { sid: id, p: pinOf(id) });
+      return noFunction(r) ? null : must(r);
+    },
     async saveStudent(s) {
       const row = { name: s.name, course: s.course || null };
       if (s.pin !== undefined) row.pin = s.pin;
@@ -151,7 +166,13 @@
   };
 
   const store = cloudReady ? cloud : local;
-  store.newPin = () => String(Math.floor(1000 + Math.random() * 9000));
+  // a new code that no other student has
+  store.newPin = (taken = []) => {
+    const used = new Set(taken.map(s => (s && s.pin) || s).filter(Boolean));
+    let p;
+    do p = String(Math.floor(1000 + Math.random() * 9000)); while (used.has(p));
+    return p;
+  };
 
   // AI cards for students (no key in the browser): Supabase Edge Function "cards-ai" holds the key.
   store.aiCards = async function ({ text, images, mode }) {
