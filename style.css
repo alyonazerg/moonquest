@@ -692,3 +692,41 @@ body.no-anim .panel, body.no-anim .tile { background: rgba(40, 34, 110, .92); }
 .hist { display: flex; justify-content: center; align-items: flex-end; gap: 6px; height: 90px; margin: 8px 0; }
 .hist .bar { width: 26px; border-radius: 6px 6px 0 0; background: linear-gradient(180deg, var(--accent), #ff9f43); position: relative; }
 .hist .bar span { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: .6em; white-space: nowrap; }
+
+/* ---------- 🌲 Mystery woods theme: a summer town in a pine forest ---------- */
+body.theme-woods {
+  --accent: #ffb547;
+  --violet: #4fb38a;
+  --cyan: #bfe8a0;
+  --glass: rgba(210, 255, 230, 0.06);
+  --glass-2: rgba(210, 255, 225, 0.12);
+  --glass-border: rgba(200, 240, 210, 0.24);
+  --muted: #cfe0c8;
+}
+body.theme-woods::before {
+  background:
+    radial-gradient(ellipse 80% 45% at 50% 105%, #8a3f2a 0%, transparent 65%),
+    linear-gradient(180deg, #0b1d2a 0%, #13343a 40%, #2b4a3c 70%, #5a4030 100%);
+}
+body.theme-woods::after {
+  background:
+    radial-gradient(ellipse 50% 35% at 20% 30%, rgba(120, 220, 170, .12), transparent 70%),
+    radial-gradient(ellipse 45% 35% at 85% 75%, rgba(255, 170, 90, .14), transparent 70%);
+}
+body.theme-woods h1, body.theme-woods .logo, body.theme-woods .tile .title, body.theme-woods h2 {
+  font-family: "Special Elite", "Nunito", monospace; letter-spacing: .5px;
+}
+body.theme-woods h1 { text-shadow: 0 0 20px rgba(255, 181, 71, .45), 0 4px 18px rgba(0, 10, 10, .8); }
+body.theme-woods .tile:hover { box-shadow: 0 26px 60px rgba(0, 10, 8, .6), 0 0 34px rgba(255, 181, 71, .35), inset 0 1px 0 rgba(255, 255, 255, .35); }
+body.theme-woods .tile::after { background: radial-gradient(circle, rgba(200, 255, 140, .22), transparent 70%); }
+body.theme-woods .card3d .front { background: linear-gradient(150deg, #2f6b55 0%, #1d4a44 50%, #13303a 100%); }
+body.theme-woods .card3d .back { background: linear-gradient(150deg, #c98a3f 0%, #8a4f2a 50%, #3a2a1f 100%); }
+body.theme-woods .progress > div { background: linear-gradient(90deg, #d8ff8a, #9fe36b, #ffb547); box-shadow: 0 0 14px rgba(200, 255, 120, .7); }
+body.theme-woods .jp-cat { background: linear-gradient(180deg, rgba(60, 130, 100, .6), rgba(30, 70, 60, .6)); }
+body.theme-woods .st-card { background: linear-gradient(150deg, #2f6b55, #13303a); }
+body.theme-woods .hm-rocket-box { width: 150px; }
+@media (max-height: 760px) { body.theme-woods .hm-rocket-box { width: clamp(100px, 18vh, 150px); } }
+/* the secret message: an old typewritten note */
+.secret summary { cursor: pointer; font-weight: 800; }
+.cipher { font-family: "Special Elite", monospace; font-size: 1.35em; letter-spacing: 3px; margin: 12px 0 4px; padding: 12px; border-radius: 12px;
+  background: #efe3c6; color: #3a2a1f; box-shadow: inset 0 0 18px rgba(120, 80, 30, .35); word-spacing: 6px; }

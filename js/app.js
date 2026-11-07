@@ -56,6 +56,25 @@
     setTimeout(() => code.focus(), 50);
   }
 
+  // Mystery woods: a secret message in a simple code (every letter moves 3 places: A→D, B→E …)
+  const SECRETS = ['EVERY MISTAKE IS A CLUE', 'THE WOODS ARE FULL OF WORDS', 'KEEP EXPLORING', 'READ MORE AND YOU WILL SEE MORE', 'BRAVE EXPLORERS ASK QUESTIONS', 'TODAY YOU WILL LEARN SOMETHING NEW'];
+  function secretMessage() {
+    const shift = (s, n) => s.replace(/[A-Z]/g, ch => String.fromCharCode((ch.charCodeAt(0) - 65 + n + 26) % 26 + 65));
+    const msg = SECRETS[Math.floor(Date.now() / 864e5) % SECRETS.length]; // a new message every day
+    const ans = h('input', { class: 'field', placeholder: 'Type the message', style: 'text-transform:uppercase' });
+    const out = h('div', { class: 'feedback' });
+    const check = () => {
+      if (MQ.norm(ans.value).replace(/[^a-z ]/g, '') === msg.toLowerCase()) { out.className = 'feedback good'; out.textContent = '🗝️ You cracked the code! ' + msg; MQ.sfx.win && MQ.sfx.win(); }
+      else { out.className = 'feedback bad'; out.textContent = 'Not yet. Move every letter 3 back: D→A, E→B, F→C …'; }
+    };
+    ans.addEventListener('keydown', (e) => { if (e.key === 'Enter') check(); });
+    return h('details', { class: 'panel narrow secret' },
+      h('summary', {}, '🔐 Secret message of the day'),
+      h('div', { class: 'cipher' }, shift(msg, 3)),
+      h('p', { class: 'hint' }, 'Code: A→D, B→E, C→F … Can you read it?'),
+      h('div', { class: 'row' }, ans, h('button', { class: 'primary', onclick: check }, 'Check')), out);
+  }
+
   async function home() {
     if (!store.me) { location.replace('#/who'); return; }
     const [sets, assigns, fresh] = await Promise.all([store.sets(), store.assignments(), store.meInfo(store.me.id).catch(e => { console.warn('me', e); return null; })]);
@@ -69,11 +88,12 @@
     const showVerbs = store.me.course !== 'as2';
     const showVpr = store.me.course === 'as2'; // ВПР is only for the Academy Stars 2 pupil
     app.append(
-      h('h1', {}, `Hello, ${store.me.name}! ${MQ.theme(store.me.id) === 'magic' ? '🪄' : '👋'}`),
+      h('h1', {}, `Hello, ${store.me.name}! ${({ magic: '🪄', woods: '🌲' })[MQ.theme(store.me.id)] || '👋'}`),
       h('div', { class: 'row theme-row' },
         h('span', { class: 'muted' }, 'Theme:'),
-        ['space', 'magic'].map(t => h('button', { class: 'chip' + (MQ.theme(store.me.id) === t ? ' on' : ''), onclick: () => { MQ.setTheme(store.me.id, t); route(); } },
-          t === 'space' ? '🚀 Space' : '🪄 Magic school'))),
+        ['space', 'magic', 'woods'].map(t => h('button', { class: 'chip' + (MQ.theme(store.me.id) === t ? ' on' : ''), onclick: () => { MQ.setTheme(store.me.id, t); route(); } },
+          { space: '🚀 Space', magic: '🪄 Magic school', woods: '🌲 Mystery woods' }[t]))),
+      MQ.theme(store.me.id) === 'woods' ? secretMessage() : null,
       h('div', { class: 'row theme-row' },
         h('button', { class: 'chip' + (MQ.slow() ? ' on' : ''), title: 'No time limits, slower games', onclick: () => { MQ.setSlow(!MQ.slow()); route(); } }, MQ.slow() ? '🐢 No timers: on' : '🐢 No timers: off'),
         h('button', { class: 'chip' + (MQ.animOn() ? ' on' : ''), title: 'Moving background and effects', onclick: () => { MQ.setAnim(!MQ.animOn()); route(); } }, MQ.animOn() ? '✨ Animation: on' : '✨ Animation: off')),

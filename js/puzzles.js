@@ -275,7 +275,7 @@
         const used = new Set();
         let wrong = 0, over = false;
         wrap.innerHTML = '';
-        const rocket = h('div', { class: 'hm-rocket-box' }); rocket.innerHTML = MQ.isMagic() ? candlesSvg() : rocketSvg();
+        const rocket = h('div', { class: 'hm-rocket-box' }); rocket.innerHTML = MQ.themeNow() !== 'space' ? candlesSvg() : rocketSvg();
         const slots = h('div', { class: 'hm-word' });
         const info = h('div', { class: 'hm-info' });
         const keys = h('div', { class: 'hm-keys' });
@@ -286,7 +286,7 @@
           x.answer.split('').forEach(ch => slots.append(ch === ' '
             ? h('span', { class: 'hm-gap' })
             : h('span', { class: 'hm-slot' + (used.has(ch) || over ? ' open' : '') + (over && !used.has(ch) ? ' missed' : '') }, used.has(ch) || over ? ch : '')));
-          info.textContent = `Lives: ${(MQ.isMagic() ? '🕯️' : '🚀').repeat(PARTS - wrong)}${'·'.repeat(wrong)}`;
+          info.textContent = `Lives: ${({ magic: '🕯️', woods: '🕯️' }[MQ.themeNow()] || '🚀').repeat(PARTS - wrong)}${'·'.repeat(wrong)}`;
           for (let k = 1; k <= PARTS; k++) rocket.querySelector('.p' + k).classList.toggle('gone', k <= wrong);
         };
         const press = (ch) => {

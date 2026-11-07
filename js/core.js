@@ -169,16 +169,19 @@ window.MQ = (function () {
   // a single word on its own (e.g. "read" on a card or in Matching)
   const sayWord = (text) => BASE_PRON[String(text).trim().toLowerCase()] || text;
 
-  // ---------- themes: 'space' (default) or 'magic', remembered per student on this device ----------
+  // ---------- themes: 'space' (default), 'magic' or 'woods', remembered per student on this device ----------
   function theme(studentId) { return load('theme_' + (studentId || 'guest'), 'space'); }
   function applyTheme(studentId) {
     const t = theme(studentId);
     document.body.classList.toggle('theme-magic', t === 'magic');
+    document.body.classList.toggle('theme-woods', t === 'woods');
     window.dispatchEvent(new CustomEvent('mq-theme', { detail: t }));
   }
   function setTheme(studentId, t) { save('theme_' + (studentId || 'guest'), t); applyTheme(studentId); }
 
   const isMagic = () => document.body.classList.contains('theme-magic');
+  const isWoods = () => document.body.classList.contains('theme-woods');
+  const themeNow = () => isMagic() ? 'magic' : isWoods() ? 'woods' : 'space';
   // Game names in the magic theme (no rockets or planets there)
   const MAGIC_GAMES = {
     hangman: { title: 'Magic Hangman', icon: '🕯️', desc: 'Guess the word before all the candles go out!' },
@@ -192,16 +195,30 @@ window.MQ = (function () {
     sort: { title: 'Potion Sort', icon: '🧪', desc: 'Put every word into the right cauldron.' },
     match: { title: 'Magic Match', icon: '🔗', desc: 'Connect each word with its pair. Click left, then right.' },
   };
+  // Game names in the mystery woods theme (a summer town in a pine forest, full of secrets)
+  const WOODS_GAMES = {
+    hangman: { title: 'Cabin Candles', icon: '🕯️', desc: 'Guess the word before all the candles in the old cabin go out!' },
+    vrunner: { title: 'Forest Trail Runner', icon: '🌲', desc: 'Run along the trail into the right verb form!' },
+    wrunner: { title: 'Forest Trail Runner', icon: '🌲', desc: 'Look at the picture and run into the right word.' },
+    blocks: { title: 'Falling Pine Cones', icon: '🌰', desc: 'Catch the letters in the right order before the pile reaches the top!' },
+    crossword: { title: 'Secret Journal', icon: '📓', desc: 'Fill in the pages of the explorer\'s journal. Look at the pictures and clues.' },
+    flash: { icon: '🔦', desc: 'Clue cards: flip, then say how well you knew it.' },
+    jeopardy: { title: 'Mystery Quiz', icon: '🔦', desc: 'Choose a topic and points, solve the mystery!' },
+    whack: { title: 'Critter Pop', icon: '🦝', desc: 'Raccoons pop out of the bushes. Hit only the right word, fast!' },
+    sort: { title: 'Mystery Jars', icon: '🫙', desc: 'Put every word into the right jar.' },
+    match: { title: 'Clue Match', icon: '🔍', desc: 'Connect each clue with its pair. Click left, then right.' },
+  };
   function gt(id, g) {
-    const m = isMagic() && MAGIC_GAMES[id];
+    const m = (isMagic() && MAGIC_GAMES[id]) || (isWoods() && WOODS_GAMES[id]);
     return m ? Object.assign({}, g, m) : g;
   }
   // Theme words: themed('planets') etc.
   const WORDS = {
     space: { planets: '🪐 My planets', planet: 'planets', good: '🚀', back: '🪐 Back' },
     magic: { planets: '📚 My lessons', planet: 'lessons', good: '🪄', back: '📚 Back' },
+    woods: { planets: '🗺️ My trails', planet: 'trails', good: '🔦', back: '🗺️ Back' },
   };
-  const themed = (k) => WORDS[isMagic() ? 'magic' : 'space'][k];
+  const themed = (k) => WORDS[themeNow()][k];
 
   // 🐢 slow mode: no time limits and no speeding up (per student, on this device)
   const slow = () => !!load('slow_' + ((MQ.store && MQ.store.me && MQ.store.me.id) || 'guest'), false);
@@ -209,5 +226,5 @@ window.MQ = (function () {
   const animOn = () => !document.body.classList.contains('no-anim');
   function setAnim(on) { save('anim', !!on); window.dispatchEvent(new Event('mq-anim')); }
 
-  return { slow, setSlow, animOn, setAnim, roleOf, speaker, isMagic, gt, themed, theme, applyTheme, setTheme, sfx, formSay, verbSay, nowUnits, unitOptions, findUnit, pic, courses, addUnit, load, save, h, shuffle, sample, norm, starsFor, uid, toast, speak, stopSpeech };
+  return { slow, setSlow, animOn, setAnim, roleOf, speaker, isMagic, isWoods, themeNow, gt, themed, theme, applyTheme, setTheme, sfx, formSay, verbSay, nowUnits, unitOptions, findUnit, pic, courses, addUnit, load, save, h, shuffle, sample, norm, starsFor, uid, toast, speak, stopSpeech };
 })();

@@ -16,10 +16,11 @@
   let still = computeStill();
   let looping = false;
   document.body.classList.toggle('no-anim', still);
-  let stars = [], planets = [], meteors = [], candles = [], w = 0, h = 0;
+  let stars = [], planets = [], meteors = [], candles = [], pines = [], flies = [], eyes = [], w = 0, h = 0;
   let magic = document.body.classList.contains('theme-magic');
+  let woods = document.body.classList.contains('theme-woods');
   let moonCanvas = null;
-  window.addEventListener('mq-theme', (e) => { magic = e.detail === 'magic'; });
+  window.addEventListener('mq-theme', (e) => { magic = e.detail === 'magic'; woods = e.detail === 'woods'; });
 
   function resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -36,6 +37,21 @@
     candles = Array.from({ length: Math.max(6, Math.round(w / 140)) }, () => ({
       x: Math.random() * w, y: h * (0.12 + Math.random() * 0.55), s: 0.7 + Math.random() * 0.6, p: Math.random() * 6,
     }));
+    // mystery woods: three rows of pine trees, fireflies and eyes that blink in the dark
+    pines = [0, 1, 2].map(row => {
+      const list = [];
+      let x = -40;
+      while (x < w + 40) {
+        const s = (0.55 + Math.random() * 0.6) * m * (row === 0 ? 0.2 : row === 1 ? 0.28 : 0.38);
+        list.push({ x, s });
+        x += s * (0.35 + Math.random() * 0.35);
+      }
+      return list;
+    });
+    flies = Array.from({ length: Math.max(14, Math.round(w / 70)) }, () => ({
+      x: Math.random() * w, y: h * (0.45 + Math.random() * 0.5), p: Math.random() * 6, s: 0.5 + Math.random(),
+    }));
+    eyes = Array.from({ length: 4 }, () => ({ x: w * (0.05 + Math.random() * 0.9), y: h * (0.8 + Math.random() * 0.12), p: Math.random() * 20, k: 0.7 + Math.random() * 0.6 }));
     planets = [
       { x: w * 0.9, y: h * 0.16, r: m * 0.075, a: '#ffb36b', b: '#c2416b', ring: true, drift: 0.6 },
       { x: w * 0.07, y: h * 0.82, r: m * 0.11, a: '#7fe3ff', b: '#3a3fb8', ring: false, drift: 0.4 },
@@ -130,9 +146,80 @@
     }
   }
 
+  // ---------- mystery woods: dusk over a pine forest, a cabin with a lit window ----------
+  function pine(x, base, s, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x - s * 0.04, base - s * 0.18, s * 0.08, s * 0.2);
+    for (let i = 0; i < 4; i++) {
+      const y = base - s * 0.12 - i * s * 0.22, wd = s * (0.34 - i * 0.07);
+      ctx.beginPath(); ctx.moveTo(x - wd, y); ctx.lineTo(x, y - s * 0.38); ctx.lineTo(x + wd, y); ctx.closePath(); ctx.fill();
+    }
+  }
+  function drawWoods(t) {
+    const m = Math.min(w, h);
+    // warm glow of the sunset low over the trees
+    const dusk = ctx.createLinearGradient(0, h * 0.35, 0, h);
+    dusk.addColorStop(0, 'rgba(255,140,80,0)'); dusk.addColorStop(0.55, 'rgba(255,140,80,.22)'); dusk.addColorStop(1, 'rgba(255,190,110,.32)');
+    ctx.fillStyle = dusk; ctx.fillRect(0, h * 0.35, w, h * 0.65);
+    // big pale moon
+    const narrow = w < 600, mx = w * (narrow ? 0.86 : 0.78), my = h * (narrow ? 0.07 : 0.2), mr = m * 0.07;
+    const glow = ctx.createRadialGradient(mx, my, mr * 0.6, mx, my, mr * 3.2);
+    glow.addColorStop(0, 'rgba(230,255,235,.3)'); glow.addColorStop(1, 'rgba(230,255,235,0)');
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(mx, my, mr * 3.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f1f7df'; ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(160,180,150,.35)';
+    [[-0.3, -0.2, 0.22], [0.25, 0.15, 0.16], [-0.05, 0.4, 0.12]].forEach(([dx, dy, r]) => { ctx.beginPath(); ctx.arc(mx + dx * mr, my + dy * mr, r * mr, 0, Math.PI * 2); ctx.fill(); });
+    // three rows of pines: far ones are lighter (mist), near ones are almost black
+    const colors = ['rgba(38,70,72,.9)', 'rgba(20,44,44,.95)', '#0a1a1a'];
+    const bases = [h * 0.86, h * 0.95, h * 1.04];
+    pines.forEach((row, i) => {
+      row.forEach(p => pine(p.x, bases[i], p.s, colors[i]));
+      if (i === 1) cabin(w * 0.16, h * 0.95, m * 0.2, t);
+    });
+    // eyes in the dark woods: they blink from time to time
+    if (!still) eyes.forEach(e => {
+      const phase = ((t / 1000) * e.k + e.p) % 9;
+      if (phase > 2.2) return; // hidden most of the time
+      const open = phase < 0.12 || (phase > 1.1 && phase < 1.22) ? 0.15 : 1;
+      ctx.fillStyle = 'rgba(255,230,90,.9)';
+      [-5, 5].forEach(dx => { ctx.beginPath(); ctx.ellipse(e.x + dx, e.y, 3, 2.4 * open, 0, 0, Math.PI * 2); ctx.fill(); });
+    });
+    // fireflies
+    flies.forEach(f => {
+      const x = f.x + (still ? 0 : Math.sin(t / 1800 * f.s + f.p) * 26);
+      const y = f.y + (still ? 0 : Math.cos(t / 2300 * f.s + f.p) * 14);
+      const a = still ? 0.7 : 0.25 + 0.75 * Math.max(0, Math.sin(t / 600 * f.s + f.p));
+      const g = ctx.createRadialGradient(x, y, 0, x, y, 9);
+      g.addColorStop(0, `rgba(220,255,120,${a})`); g.addColorStop(1, 'rgba(220,255,120,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+  // a small log cabin on the edge of the forest
+  function cabin(x, base, s, t) {
+    ctx.fillStyle = '#1b1210';
+    ctx.fillRect(x, base - s * 0.45, s, s * 0.45);
+    ctx.beginPath(); ctx.moveTo(x - s * 0.12, base - s * 0.43); ctx.lineTo(x + s * 0.5, base - s * 0.8); ctx.lineTo(x + s * 1.12, base - s * 0.43); ctx.fill();
+    ctx.fillRect(x + s * 0.72, base - s * 0.86, s * 0.1, s * 0.25); // chimney
+    // lit windows
+    const flick = still ? 1 : 0.85 + 0.15 * Math.sin(t / 500);
+    ctx.fillStyle = `rgba(255,190,90,${0.85 * flick})`;
+    ctx.fillRect(x + s * 0.14, base - s * 0.33, s * 0.2, s * 0.14);
+    ctx.fillRect(x + s * 0.62, base - s * 0.33, s * 0.2, s * 0.14);
+    ctx.fillStyle = '#1b1210';
+    ctx.fillRect(x + s * 0.235, base - s * 0.33, s * 0.015, s * 0.14);
+    ctx.fillRect(x + s * 0.715, base - s * 0.33, s * 0.015, s * 0.14);
+    // smoke from the chimney
+    if (!still) for (let i = 0; i < 4; i++) {
+      const k = ((t / 2600) + i / 4) % 1;
+      ctx.fillStyle = `rgba(200,210,220,${0.22 * (1 - k)})`;
+      ctx.beginPath(); ctx.arc(x + s * 0.77 + Math.sin(k * 6 + i) * 6, base - s * 0.9 - k * s * 0.6, s * (0.04 + k * 0.08), 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
   function draw(t) {
     ctx.clearRect(0, 0, w, h);
     for (const s of stars) {
+      if (woods && (s.y > h * 0.6 || s.r < 0.6)) continue;
       const a = still ? 0.8 : 0.4 + 0.6 * Math.abs(Math.sin(s.p + t * 0.001 * s.s));
       ctx.globalAlpha = a; ctx.fillStyle = s.tint;
       ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
@@ -143,7 +230,7 @@
       }
     }
     ctx.globalAlpha = 1;
-    if (magic) drawMagic(t); else planets.forEach(p => planet(p, t));
+    if (magic) drawMagic(t); else if (woods) drawWoods(t); else planets.forEach(p => planet(p, t));
     if (!still) {
       if (Math.random() < 0.004 && meteors.length < 2) meteors.push({ x: Math.random() * w * 0.8 + w * 0.2, y: Math.random() * h * 0.4, life: 1 });
       meteors = meteors.filter(m => m.life > 0);

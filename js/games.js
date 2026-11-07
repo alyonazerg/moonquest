@@ -4,7 +4,8 @@
   const { h, shuffle, sample, norm, speak } = MQ;
   const PRAISE = ['Great job! ⭐', 'Well done! 🚀', 'Super! 🌟', 'Yes! Correct! 🎉', 'Brilliant! ✨'];
   const MAGIC_PRAISE = ['Magical! ✨', 'Brilliant spell! 🪄', 'Wonderful, young wizard! 🧙', 'Yes! Ten points! 🏆', 'Perfect potion! 🧪'];
-  const praise = () => { const l = MQ.isMagic() ? MAGIC_PRAISE : PRAISE; return l[Math.floor(Math.random() * l.length)]; };
+  const WOODS_PRAISE = ['Mystery solved! 🔍', 'Great detective work! 🔦', 'You cracked the code! 🗝️', 'Yes! Another clue! 📓', 'Awesome, explorer! 🌲'];
+  const praise = () => { const l = MQ.isMagic() ? MAGIC_PRAISE : MQ.isWoods() ? WOODS_PRAISE : PRAISE; return l[Math.floor(Math.random() * l.length)]; };
 
   const sayBtn = (text) => h('button', { class: 'chip', title: 'Listen', onclick: (e) => { e.stopPropagation(); speak(text); } }, '🔊');
   const bar = (part) => h('div', { class: 'progress' }, h('div', { style: `width:${Math.round(part * 100)}%` }));
