@@ -16,11 +16,11 @@ async function allowed(req: Request, body: { sid?: string; pin?: string }) {
   const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
   if (token && token.split(".").length === 3) {
     const { data } = await admin.auth.getUser(token);
-    if (data?.user) return true; // the teacher
+    if (data?.user) return "teacher";
   }
   if (body.sid && body.pin) {
     const { data, error } = await admin.rpc("check_student", { sid: body.sid, p: String(body.pin) });
-    if (!error && data === true) return true;
+    if (!error && data === true) return "student";
   }
   return false;
 }
@@ -65,7 +65,8 @@ function parse(raw: string) {
 }
 
 async function ask(text: string, images: string[], mode = "cards"): Promise<string> {
-  const prompt = (mode === "jeopardy" ? JEOPARDY_PROMPT : mode === "vpr" ? VPR_PROMPT : PROMPT) + (text ? "\n\nMaterial:\n" + text : "");
+  // a lesson: the teacher's page sends the whole instruction itself
+  const prompt = mode === "lesson" ? text : (mode === "jeopardy" ? JEOPARDY_PROMPT : mode === "vpr" ? VPR_PROMPT : PROMPT) + (text ? "\n\nMaterial:\n" + text : "");
   const anthropic = Deno.env.get("ANTHROPIC_API_KEY");
   const openai = Deno.env.get("OPENAI_API_KEY");
   const mistral = Deno.env.get("MISTRAL_API_KEY");
@@ -79,7 +80,7 @@ async function ask(text: string, images: string[], mode = "cards"): Promise<stri
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": anthropic, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: Deno.env.get("CLAUDE_MODEL") || "claude-sonnet-5-5", max_tokens: 4000, messages: [{ role: "user", content }] }),
+      body: JSON.stringify({ model: Deno.env.get("CLAUDE_MODEL") || "claude-sonnet-5-5", max_tokens: mode === "lesson" ? 12000 : 4000, messages: [{ role: "user", content }] }),
     });
     if (!r.ok) throw new Error(`Claude ${r.status}: ${(await r.text()).slice(0, 200)}`);
     const d = await r.json();
@@ -115,18 +116,21 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     const { text = "", images = [], mode = "cards" } = body;
-    if (!(await allowed(req, body))) return json({ error: "Please log in (teacher) or enter your student code again." }, 401);
+    const who = await allowed(req, body);
+    if (mode === "lesson" && who !== "teacher") return json({ error: "Lessons are made by the teacher (please log in)." }, 401);
+    if (!who) return json({ error: "Please log in (teacher) or enter your student code again." }, 401);
     // daily limit for the whole site (secret AI_DAILY_LIMIT, default 200 requests a day)
     const { data: okToday } = await admin.rpc("ai_take", { max_per_day: Number(Deno.env.get("AI_DAILY_LIMIT") || 200) });
     if (okToday === false) return json({ error: "The AI limit for today is used up. Try again tomorrow." }, 429);
     // keep requests small: this function only makes vocabulary cards
-    if (typeof text !== "string" || text.length > 6000) return json({ error: "Text is too long (max 6000 characters)." }, 400);
-    if (!Array.isArray(images) || images.length > 3) return json({ error: "Up to 3 photos at a time." }, 400);
+    const maxText = mode === "lesson" ? 12000 : 6000, maxImages = mode === "lesson" ? 6 : 3;
+    if (typeof text !== "string" || text.length > maxText) return json({ error: `Text is too long (max ${maxText} characters).` }, 400);
+    if (!Array.isArray(images) || images.length > maxImages) return json({ error: `Up to ${maxImages} photos at a time.` }, 400);
     if (images.some((i) => typeof i !== "string" || !i.startsWith("data:image/") || i.length > 7_000_000)) return json({ error: "Photo is too big." }, 400);
     if (!text.trim() && !images.length) return json({ error: "Write some words or add a photo." }, 400);
 
-    const out = parse(await ask(text, images, ["jeopardy", "vpr"].includes(mode) ? mode : "cards"));
-    if (mode === "vpr") return json(out);
+    const out = parse(await ask(text, images, ["jeopardy", "vpr", "lesson"].includes(mode) ? mode : "cards"));
+    if (mode === "vpr" || mode === "lesson") return json(out);
     if (mode === "jeopardy") { out.items = (out.items || []).slice(0, 30); return json(out); }
     out.kind = out.kind === "verbs" ? "verbs" : "words";
     out.items = (out.items || []).slice(0, 40);

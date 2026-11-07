@@ -230,6 +230,12 @@
           MQ.theme(store.me.id) === 'woods' ? secretMessage() : null)),
       tasks.length ? h('div', { class: 'home-more' }, h('h2', {}, '🗂 My cards & tasks'), h('div', { class: 'grid' }, tasks.map(s => {
         const u = MQ.sets.setToUnit(s);
+        if (s.kind === 'lesson') {
+          const st = store.getStars(`set:${s.id}/lesson`);
+          return h('a', { class: 'tile', href: `#/lesson/${s.id}` },
+            h('div', { class: 'big' }, '📚'), h('div', { class: 'title' }, s.title), h('div', { class: 'muted' }, u.subtitle),
+            h('div', { class: 'stars' }, st ? starStr(st) : 'New lesson'));
+        }
         return h('a', { class: 'tile', href: `#/s/${s.id}` },
           h('div', { class: 'big' }, u.icon), h('div', { class: 'title' }, s.title), h('div', { class: 'muted' }, u.subtitle),
           h('div', { class: 'stars' }, `★ ${unitStars(SETS, u)} / ${gameIds(u).length * 3}`));
@@ -476,6 +482,13 @@
     if (gid && games[gid]) play(SETS, u, gid); else unit(SETS, u);
   }
 
+  async function lessonRoute(id) {
+    if (!store.me && !store.isTeacher()) { location.replace('#/who'); return; }
+    const set = await store.getSet(id);
+    if (!set || set.kind !== 'lesson') { app.append(h('p', {}, 'This lesson was deleted.'), h('a', { class: 'btn', href: '#/' }, 'Home')); return; }
+    MQ.lessons.lessonScreen(app, set);
+  }
+
   // Personal link from the teacher: #/login/<student id>/<code>
   async function loginLink(id, pin) {
     try {
@@ -501,6 +514,7 @@
       else if (top === 'login' && a) await loginLink(a, decodeURIComponent(b || ''));
       else if (top === 'add') await addScreen(a, b);
       else if (top === 'mistakes') mistakesScreen();
+      else if (top === 'lesson' && a) await lessonRoute(a);
       else if (top === 'teacher') await MQ.teacher.route(app, parts);
       else if (top === 's' && a) await setRoute(a, b);
       else if (top === 'c' && courses[a]) {

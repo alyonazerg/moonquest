@@ -65,6 +65,11 @@
     audioUrl: () => null,
     // Pictures are kept inside the set as small data URLs
     saveImage: (blob) => new Promise((ok, fail) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => fail(r.error); r.readAsDataURL(blob); }),
+    // without the database files are kept inside the lesson / progress as data URLs (small files only)
+    saveFile(blob) {
+      if (blob.size > 3e6) return Promise.reject(new Error('Без базы можно сохранить только маленький файл (до 3 МБ).'));
+      return new Promise((ok, fail) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => fail(r.error); r.readAsDataURL(blob); });
+    },
     async saveAudio() { throw new Error('Озвучка сохраняется только при подключённой базе (Supabase).'); },
   };
 
@@ -154,6 +159,12 @@
     async saveImage(blob) {
       const path = 'img/' + uid() + '.webp';
       must(await db.storage.from('audio').upload(path, blob, { contentType: 'image/webp' }));
+      return db.storage.from('audio').getPublicUrl(path).data.publicUrl;
+    },
+    async saveFile(blob, folder, ext) {
+      const path = `${folder}/${uid()}.${String(ext || 'bin').replace(/[^a-z0-9]/gi, '').slice(0, 5)}`;
+      const up = await db.storage.from('audio').upload(path, blob, { contentType: blob.type || 'application/octet-stream' });
+      if (up.error) throw new Error(/row-level|policy|unauthorized/i.test(up.error.message) ? 'Файл не сохранился: учителю нужно выполнить supabase/006_lessons.sql (см. SETUP.md).' : up.error.message);
       return db.storage.from('audio').getPublicUrl(path).data.publicUrl;
     },
     async saveAudio(text, blob) {

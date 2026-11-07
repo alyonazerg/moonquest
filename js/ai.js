@@ -76,7 +76,7 @@ or for verbs:
       const raw = (await res.json()).choices[0].message.content;
       return typeof raw === 'string' ? raw : raw.map(p => p.text || '').join('');
     },
-    async anthropic(text, images) {
+    async anthropic(text, images, maxTokens) {
       if (!settings.anthropicKey) throw new Error('Нет ключа Claude. Добавьте его в Настройках.');
       const content = images.map(img => {
         const [, type, data] = img.match(/^data:([^;]+);base64,(.*)$/);
@@ -85,7 +85,7 @@ or for verbs:
       content.push({ type: 'text', text });
       const data = await post('Claude', 'https://api.anthropic.com/v1/messages', {
         'x-api-key': settings.anthropicKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true',
-      }, { model: settings.claudeModel, max_tokens: 4000, messages: [{ role: 'user', content }] });
+      }, { model: settings.claudeModel, max_tokens: maxTokens || 4000, messages: [{ role: 'user', content }] });
       return data.content.filter(c => c.type === 'text').map(c => c.text).join('');
     },
     async openai(text, images) {
@@ -172,6 +172,13 @@ Distribute the right answers (1/2/3) evenly. Return ONLY JSON:
     else json = await MQ.store.aiCards({ text: material, images, mode: 'vpr' });
     json.tasks = MQ.vprCheck.normalize(json.tasks || []);
     return json;
+  }
+
+  // any JSON task (used by lessons): the teacher's own key, or the database's AI function
+  async function askJson(prompt, images, mode) {
+    if (recognizerReady()) return parseJson(await (providers[settings.provider] || providers.mistral)(prompt, images || [], 12000));
+    if (MQ.store.mode !== 'cloud') throw new Error('Добавьте ключ ИИ в Настройках (Mistral, Claude или OpenAI).');
+    return MQ.store.aiCards({ text: prompt, images: images || [], mode });
   }
 
   // ---------- pictures for cards (OpenAI) ----------
@@ -293,5 +300,5 @@ Distribute the right answers (1/2/3) evenly. Return ONLY JSON:
   // Voice sample file -> base64 (without the data: prefix)
   async function fileToBase64(file) { return (await fileToDataUrl(file)).replace(/^data:[^,]+,/, ''); }
 
-  MQ.ai = { roleVoice, ROLE_FIELDS, generateVpr, generateJeopardy, settings, saveSettings, hasKey: () => !!settings.key, recognizerReady, canMakeCards: () => recognizerReady() || MQ.store.mode === 'cloud', PROVIDER_NAMES, recognize, drawPicture, tts, voices, fileToBase64, DEFAULT_VOICE };
+  MQ.ai = { askJson, unitMaterial, roleVoice, ROLE_FIELDS, generateVpr, generateJeopardy, settings, saveSettings, hasKey: () => !!settings.key, recognizerReady, canMakeCards: () => recognizerReady() || MQ.store.mode === 'cloud', PROVIDER_NAMES, recognize, drawPicture, tts, voices, fileToBase64, DEFAULT_VOICE };
 })();

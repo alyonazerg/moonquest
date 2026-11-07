@@ -15,7 +15,7 @@
     const u = c && c.units.find(x => x.id === unitId);
     return `${c ? c.icon + ' ' + c.title : cid} · ${u ? u.title : unitId}`;
   }
-  const gameTitle = (game) => games[game] ? games[game].title : game;
+  const gameTitle = (game) => game === 'lesson' ? 'Урок' : games[game] ? games[game].title : game;
   const splitKey = (key) => [key.slice(0, key.lastIndexOf('/')), key.slice(key.lastIndexOf('/') + 1)];
   function keyLabel(key, setsById) {
     const [where, game] = splitKey(key);
@@ -166,7 +166,7 @@
   function tabs(active) {
     const t = (href, label, id) => h('a', { class: 'btn chip' + (active === id ? ' on' : ''), href }, label);
     return h('div', { class: 'row', style: 'margin:10px 0 18px' },
-      t('#/teacher', '👧 Ученицы', 'students'), t('#/teacher/sets', '🗂 Наборы карточек', 'sets'), t('#/teacher/settings', '⚙️ Настройки', 'settings'));
+      t('#/teacher', '👧 Ученицы', 'students'), t('#/teacher/sets', '🗂 Наборы карточек', 'sets'), t('#/teacher/lessons', '📚 Уроки по учебнику', 'lessons'), t('#/teacher/settings', '⚙️ Настройки', 'settings'));
   }
   function header(app, active) {
     app.append(h('h1', {}, '👩‍🏫 Кабинет учителя'),
@@ -275,6 +275,12 @@
             h('td', { class: 'stars' }, stars(p.stars || 0)),
             h('td', {}, `${p.correct ?? ''}/${p.total ?? ''} · ${fmtDate(p.updated_at)}${p.plays ? ` · ×${p.plays}` : ''}`),
             h('td', { class: 'muted' }, (p.mistakes || []).join(', ')))))) : h('p', { class: 'muted' }, 'Ещё не играла.')),
+      rows.some(p => p.key.endsWith('/lesson')) ? h('div', { class: 'panel left' },
+        h('h2', {}, '📚 Уроки: ответы, записи голоса и письменные работы'),
+        rows.filter(p => p.key.endsWith('/lesson')).map(p => {
+          const set = setsById[splitKey(p.key)[0].slice(4)];
+          return h('details', { open: true }, h('summary', {}, `${set ? set.title : 'удалённый урок'} · ${fmtDate(p.updated_at)}`), MQ.lessons.answersView(p, set));
+        })) : null,
     );
   }
 
@@ -621,6 +627,7 @@
   }
 
   MQ.teacher = {
+    header,
     async route(app, parts) {
       if (!store.isTeacher()) return loginScreen(app);
       const [, , a, b] = parts; // #/teacher/<a>/<b>
@@ -629,6 +636,8 @@
       if (a === 'sets') return setsScreen(app);
       if (a === 'set') return setEditor(app, b === 'new' || b === 'new-vpr' ? null : b, b === 'new-vpr' ? 'vpr' : null);
       if (a === 'settings') return settingsScreen(app);
+      if (a === 'lessons') return MQ.lessons.teacherList(app);
+      if (a === 'lesson') return b === 'new' ? MQ.lessons.teacherNew(app) : MQ.lessons.teacherEdit(app, b);
       return studentsScreen(app);
     },
   };

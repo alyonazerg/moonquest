@@ -878,3 +878,51 @@ body.light .rn-ask { box-shadow: none; }
   #who { flex-wrap: nowrap; gap: 6px; }
   #who .chip, #who .btn { padding: .4em .6em; }
 }
+
+/* ---------- 📚 lessons from the textbook ---------- */
+main:has(.ls-wrap) { max-width: 1200px; }
+.ls-wrap { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; text-align: left; }
+.ls-nav { flex: 1 1 220px; max-width: 280px; position: sticky; top: 76px; display: flex; flex-direction: column; gap: 4px; font-size: .78em; }
+.ls-navtitle { font-family: "Unbounded", sans-serif; font-weight: 700; font-size: 1.05em; margin-top: 6px; }
+.ls-navitem { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 12px; text-decoration: none; color: var(--muted); }
+.ls-navitem:hover { background: var(--surface); color: var(--text); }
+.ls-navitem.done { color: var(--good); }
+.ls-dot { width: 22px; height: 22px; flex-shrink: 0; border-radius: 50%; border: 2px solid currentColor; display: inline-flex; align-items: center; justify-content: center; font-size: .75em; font-weight: 700; }
+.ls-main { flex: 999 1 560px; min-width: 0; max-width: 880px; }
+.ls-card { margin: 0 0 18px; text-align: left; scroll-margin-top: 80px; }
+.ls-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.ls-head h2 { margin: 0 0 4px; font-size: 1em; }
+.ls-instr { margin: 0 0 10px; font-size: .82em; }
+.ls-text { white-space: pre-line; background: var(--surface-2); border-radius: 14px; padding: 12px 16px; margin: 6px 0 12px; font-size: .9em; line-height: 1.6; }
+.ls-line { margin: 6px 0; line-height: 2.1; font-size: .95em; }
+.ls-gap { display: inline-block; width: auto; min-width: 5em; padding: 4px 10px; margin: 0 4px; font-size: .9em; vertical-align: middle; }
+.ls-bank { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.chip-static { padding: 3px 12px; border-radius: 999px; border: 1px dashed var(--line); font-size: .78em; color: var(--muted); }
+.ls-match { display: grid; gap: 8px; }
+.ls-pair { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ls-left { min-width: 9em; font-weight: 600; }
+.ls-sel { min-width: 12em !important; margin: 0; }
+.ls-q { margin: 10px 0 14px; }
+.ls-qtext { font-weight: 600; margin-bottom: 6px; }
+.ls-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.ls-opt { font-size: .82em; padding: .5em 1em; }
+.ls-opt.on { border-color: var(--sky); box-shadow: 0 0 0 3px rgba(98, 182, 255, .2); }
+.ls-opt.ok, .ls-gap.ok, .ls-sel.ok, .ls-build.ok { border-color: var(--good) !important; box-shadow: 0 0 0 3px rgba(69, 214, 160, .2); }
+.ls-opt.no, .ls-gap.no, .ls-sel.no, .ls-build.no { border-color: var(--bad) !important; box-shadow: 0 0 0 3px rgba(255, 138, 122, .2); }
+.ls-build { min-height: 52px; border: 2px dashed var(--line); border-radius: 14px; padding: 6px; display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.ls-pool { display: flex; flex-wrap: wrap; gap: 6px; }
+.ls-word { font-size: .82em; padding: .45em .9em; }
+.ls-word.on { border-color: var(--sky); }
+.ls-player { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.ls-player .muted { font-size: .72em; }
+.ls-rec { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ls-recbtn { background: #C2346A; color: #fff; border-color: transparent; border-radius: 999px; }
+.ls-recbtn:hover { background: #d23d77; }
+.ls-recbtn.on { box-shadow: 0 0 0 6px rgba(194, 52, 106, .25); }
+.ls-rec audio, .ls-ans audio { height: 40px; max-width: 100%; }
+.ls-edit .lbl { display: block; margin-top: 8px; }
+.ls-edit textarea { width: 100%; }
+.ls-answers { display: grid; gap: 10px; margin: 8px 0 14px; }
+.ls-ans { display: flex; flex-direction: column; gap: 4px; font-size: .85em; }
+@media (max-width: 700px) { .ls-nav { position: static; max-width: none; } }
+.ls-card button, .ls-card .btn { font-size: .85em; }
