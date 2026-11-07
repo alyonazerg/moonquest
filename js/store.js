@@ -207,6 +207,8 @@
       catch (e) { console.warn('progress load', e); }
     }
   };
+  // all progress rows of the student on this device (for the moon week on the home page)
+  store.rows = () => Object.values(progressCache);
   store.getStars = (key) => (progressCache[key] || {}).stars || 0;
   // Save one progress row. "data" holds the Anki schedule of a deck.
   let noDataColumn = false;

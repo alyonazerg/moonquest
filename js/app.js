@@ -16,7 +16,104 @@
     who.append(
       store.me ? h('a', { class: 'btn chip', href: '#/who', title: 'Change player' }, '👤 ' + store.me.name) : null,
       h('button', { class: 'chip', title: 'Sounds on/off', onclick: (e) => { e.currentTarget.textContent = MQ.sfx.toggle() ? '🔔' : '🔕'; } }, MQ.sfx.on ? '🔔' : '🔕'),
+      store.me ? settingsMenu() : null,
       h('a', { class: 'btn chip', href: '#/teacher', title: 'Teacher' }, '👩‍🏫'));
+  }
+
+  // ⚙️ theme, light / dark, no timers, animation: one small menu instead of rows of chips on the home page
+  function settingsMenu() {
+    const id = store.me.id, t = MQ.theme(id);
+    const chip = (on, label, fn) => h('button', { class: 'chip' + (on ? ' on' : ''), onclick: () => { fn(); route(); } }, label);
+    return h('details', { class: 'settings' },
+      h('summary', { class: 'btn chip', title: 'Theme and settings', 'aria-label': 'Theme and settings' }, '⚙️'),
+      h('div', { class: 'settings-pop' },
+        h('h3', {}, 'Theme'),
+        h('div', { class: 'row' }, ['space', 'magic', 'woods'].map(x => chip(t === x, { space: '🚀 Space', magic: '🪄 Magic school', woods: '🌲 Mystery woods' }[x], () => MQ.setTheme(id, x)))),
+        t === 'space' ? h('h3', {}, 'Colours') : null,
+        t === 'space' ? h('div', { class: 'row' }, chip(MQ.mode(id) !== 'light', '🌙 Dark', () => MQ.setMode(id, 'dark')), chip(MQ.mode(id) === 'light', '☀️ Light', () => MQ.setMode(id, 'light'))) : null,
+        h('h3', {}, 'Games'),
+        h('div', { class: 'row' },
+          chip(MQ.slow(), MQ.slow() ? '🐢 No timers: on' : '🐢 No timers: off', () => MQ.setSlow(!MQ.slow())),
+          chip(MQ.animOn(), MQ.animOn() ? '✨ Animation: on' : '✨ Animation: off', () => MQ.setAnim(!MQ.animOn())))));
+  }
+
+  // ---------- star map: the games of a unit are stars; played ones light up and make a constellation ----------
+  const STAR_POS = {
+    2: [[25, 60], [75, 40]],
+    3: [[15, 66], [50, 38], [85, 60]],
+    4: [[12, 70], [37, 40], [63, 62], [88, 30]],
+    5: [[10, 70], [30, 40], [50, 62], [70, 32], [90, 56]],
+    6: [[10, 72], [27, 44], [45, 60], [62, 30], [78, 54], [90, 22]],
+  };
+  const STAR_SVG = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg>';
+  const stepInfo = (id) => id === 'vpr' ? { icon: '📝', title: 'Unit test', desc: 'A test in the ВПР format.' } : MQ.gt(id, games[id]);
+  function starState(c, u) {
+    const steps = pathSteps(c, u).slice(0, 6);
+    const done = (id) => store.getStars(c.key(u, id)) >= 2;
+    return { steps, done, next: steps.find(id => !done(id)), lit: steps.filter(done).length };
+  }
+  function starMap(c, u, kicker) {
+    const { steps, done, next, lit } = starState(c, u);
+    if (steps.length < 2) return null;
+    const pos = STAR_POS[steps.length];
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 100 100'); svg.setAttribute('preserveAspectRatio', 'none'); svg.setAttribute('aria-hidden', 'true');
+    // a few faint background stars
+    [[6, 12], [20, 88], [38, 16], [55, 90], [72, 8], [95, 72], [84, 92], [50, 40]].forEach(([x, y]) => {
+      const d = document.createElementNS(ns, 'circle');
+      d.setAttribute('cx', x); d.setAttribute('cy', y); d.setAttribute('r', '.3'); d.setAttribute('fill', '#fff'); d.setAttribute('opacity', '.5');
+      svg.appendChild(d);
+    });
+    for (let i = 1; i < steps.length; i++) {
+      const l = document.createElementNS(ns, 'line');
+      const [a, b] = [pos[i - 1], pos[i]];
+      l.setAttribute('x1', a[0]); l.setAttribute('y1', a[1]); l.setAttribute('x2', b[0]); l.setAttribute('y2', b[1]);
+      l.setAttribute('vector-effect', 'non-scaling-stroke');
+      const both = done(steps[i - 1]) && done(steps[i]);
+      const toNext = done(steps[i - 1]) && steps[i] === next;
+      l.setAttribute('stroke', both || toNext ? 'var(--star)' : '#4a4290');
+      l.setAttribute('stroke-width', both ? '2.5' : '1.5');
+      if (!both) l.setAttribute('stroke-dasharray', '5 6');
+      svg.appendChild(l);
+    }
+    const stars = steps.map((id, i) => {
+      const t = stepInfo(id), st = store.getStars(c.key(u, id));
+      const cls = done(id) ? 'done' : id === next ? 'next' : 'locked';
+      const a = h('a', { class: 'sm-star ' + cls, href: `${c.href}/${u.id}/${id}`, style: `left:${pos[i][0]}%;top:${pos[i][1]}%`, title: t.title });
+      if (cls === 'done') { a.insertAdjacentHTML('beforeend', STAR_SVG); a.append(h('span', { class: 'name' }, t.title), h('span', { class: 'st' }, starStr(st))); }
+      else if (cls === 'next') a.append(h('span', { class: 'ring' }, h('span', { class: 'core' }, t.icon)), h('span', { class: 'name' }, t.title));
+      else a.append(h('span', { class: 'dot' }), h('span', { class: 'name' }, t.title));
+      return a;
+    });
+    return h('section', { class: 'starmap-card' },
+      h('div', { class: 'row space', style: 'align-items:flex-end;justify-content:space-between' },
+        h('div', {}, h('div', { class: 'kicker' }, kicker || c.title), h('h1', {}, `${u.icon || '🪐'} ${u.title}`)),
+        h('span', { class: 'lit' }, `★ ${lit} of ${steps.length} stars lit`)),
+      h('div', { class: 'starmap' }, svg, stars),
+      h('p', { class: 'note' }, next ? `Light all ${steps.length} stars and the constellation of this unit appears on your sky. A star lights up with ★★.` : '🎉 The constellation is complete! Play any game to get more stars.'));
+  }
+
+  // 🌕 moon week: every day with a game this week is a full moon
+  function moonWeek() {
+    const now = new Date();
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+    const dayKey = (d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    const played = new Set(store.rows().filter(r => r.updated_at).map(r => dayKey(new Date(r.updated_at))));
+    const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    let count = 0;
+    const days = names.map((n, i) => {
+      const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+      const isToday = dayKey(d) === dayKey(now);
+      const on = played.has(dayKey(d));
+      if (on) count++;
+      return h('span', { class: isToday ? 'today' : '' }, h('i', { class: on ? 'full' : isToday ? 'half' : '' }), isToday ? 'Today' : n);
+    });
+    const today = played.has(dayKey(now));
+    return h('div', { class: 'panel' },
+      h('div', { class: 'row', style: 'justify-content:space-between' }, h('h2', { style: 'margin:0;font-size:.85em' }, '🌙 Moon week'), h('span', { class: 'stars', style: 'font-size:.7em;letter-spacing:0' }, `${count} of 7 days`)),
+      h('div', { class: 'moonweek' }, days),
+      h('div', { class: 'muted', style: 'font-size:.68em' }, today ? 'Full moon today! Great job.' : 'Play one game today to make a full moon.'));
   }
 
   // ---------- screens ----------
@@ -87,53 +184,67 @@
     const myCourses = own.filter(c => c.id !== 'irr');
     const showVerbs = store.me.course !== 'as2';
     const showVpr = store.me.course === 'as2'; // ВПР is only for the Academy Stars 2 pupil
+    // the star map shows a unit we study now (several: switch with chips)
+    const mapUnits = now.length ? now : myCourses.flatMap(c => c.units.map(u => ({ c, u }))).slice(0, 1);
+    const pick = Math.min(MQ.load('mapUnit_' + store.me.id, 0), Math.max(0, mapUnits.length - 1));
+    const cur = mapUnits[pick];
+    const randomGame = () => {
+      // any of my units (textbook, folders) and any game in it
+      const pool = [...myCourses, ...(showVerbs ? [courses.irr] : []), courses.magic].flatMap(c => c.units.map(u => ({ c, u })));
+      const { c, u } = pool[Math.floor(Math.random() * pool.length)];
+      const ids = gameIds(u);
+      location.hash = `${c.href}/${u.id}/${ids[Math.floor(Math.random() * ids.length)]}`;
+    };
+    let side = null, map = null;
+    if (cur) {
+      const { next } = starState(cur.c, cur.u);
+      const t = next && stepInfo(next);
+      map = starMap(cur.c, cur.u, `${cur.c.title}${now.length ? ' · now' : ''}`) || h('a', { class: 'panel tile', href: `${cur.c.href}/${cur.u.id}` }, h('div', { class: 'big' }, cur.u.icon || '🪐'), h('div', { class: 'title' }, cur.u.title));
+      side = [
+        h('div', { class: 'panel' },
+          h('div', { class: 'kicker' }, next ? 'Next game' : 'Unit complete'),
+          h('div', { class: 'big-title' }, next ? `${t.icon} ${t.title}` : '🎉 All stars are lit!'),
+          h('div', { class: 'muted', style: 'font-size:.72em' }, next ? t.desc : 'Play any game to get 3 stars everywhere.'),
+          h('a', { class: 'btn primary', href: next ? `${cur.c.href}/${cur.u.id}/${next}` : `${cur.c.href}/${cur.u.id}` }, next ? '▶ Play' : 'Open the unit'),
+          h('div', { class: 'row', style: 'margin-top:8px;justify-content:space-between' },
+            h('a', { class: 'btn chip', href: `${cur.c.href}/${cur.u.id}` }, 'All games'),
+            h('a', { class: 'btn chip', href: `#/add/${cur.c.id}/${cur.u.id}` }, '＋ My words'))),
+      ];
+    }
     app.append(
-      h('h1', {}, `Hello, ${store.me.name}! ${({ magic: '🪄', woods: '🌲' })[MQ.theme(store.me.id)] || '👋'}`),
-      h('div', { class: 'row theme-row' },
-        h('span', { class: 'muted' }, 'Theme:'),
-        ['space', 'magic', 'woods'].map(t => h('button', { class: 'chip' + (MQ.theme(store.me.id) === t ? ' on' : ''), onclick: () => { MQ.setTheme(store.me.id, t); route(); } },
-          { space: '🚀 Space', magic: '🪄 Magic school', woods: '🌲 Mystery woods' }[t]))),
-      MQ.theme(store.me.id) === 'woods' ? secretMessage() : null,
-      h('div', { class: 'row theme-row' },
-        h('button', { class: 'chip' + (MQ.slow() ? ' on' : ''), title: 'No time limits, slower games', onclick: () => { MQ.setSlow(!MQ.slow()); route(); } }, MQ.slow() ? '🐢 No timers: on' : '🐢 No timers: off'),
-        h('button', { class: 'chip' + (MQ.animOn() ? ' on' : ''), title: 'Moving background and effects', onclick: () => { MQ.setAnim(!MQ.animOn()); route(); } }, MQ.animOn() ? '✨ Animation: on' : '✨ Animation: off')),
-      now.length ? h('div', { class: 'panel now' },
-        h('div', { class: 'muted' }, '📍 Now we study'),
-        now.map(o => h('div', { class: 'now-row' },
-          h('div', {}, h('div', { class: 'title' }, `${o.u.icon || '🪐'} ${o.u.title}`), h('div', { class: 'muted' }, o.c.title)),
-          h('div', { class: 'row' },
-            h('a', { class: 'btn chip', href: `${o.c.href}/${o.u.id}` }, 'Open'),
-            h('a', { class: 'btn chip', href: `#/add/${o.c.id}/${o.u.id}` }, '＋ Add my words'))))) :
-        h('div', { class: 'row' }, h('a', { class: 'btn primary', href: '#/add' }, '＋ Add my words')),
-      h('div', { class: 'row', style: 'margin-top:10px' }, h('button', { onclick: () => {
-        // any of my units (textbook, folders) and any game in it
-        const pool = [...myCourses, ...(showVerbs ? [courses.irr] : []), courses.magic].flatMap(c => c.units.map(u => ({ c, u })));
-        const { c, u } = pool[Math.floor(Math.random() * pool.length)];
-        const ids = gameIds(u);
-        location.hash = `${c.href}/${u.id}/${ids[Math.floor(Math.random() * ids.length)]}`;
-      } }, '🎲 Surprise me: random game')),
-      MQ.mistakes.cards().length ? h('a', { class: 'panel mistakes-tile', href: '#/mistakes' },
-        h('div', { class: 'big' }, '🔁'),
-        h('div', {}, h('div', { class: 'title' }, 'My mistakes'),
-          h('div', { class: 'muted' }, MQ.mistakes.dueCount() ? `${MQ.mistakes.dueCount()} cards to practise today` : 'All done for today ✓')),
-        h('span', { class: 'btn primary' }, '▶')) : null,
-      tasks.length ? h('h2', {}, '🗂 My cards & tasks') : null,
-      tasks.length ? h('div', { class: 'grid' }, tasks.map(s => {
+      h('div', { class: 'home-more', style: 'margin-top:0;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px' },
+        h('h1', { style: 'margin:.2em 0;text-align:left' }, `Hi, ${store.me.name}! ${({ magic: '🪄', woods: '🌲' })[MQ.theme(store.me.id)] || '👋'}`),
+        h('div', { class: 'row' },
+          mapUnits.length > 1 ? mapUnits.map((o, i) => h('button', { class: 'chip' + (i === pick ? ' on' : ''), onclick: () => { MQ.save('mapUnit_' + store.me.id, i); route(); } }, `${o.u.icon || '🪐'} ${o.u.title.split('·')[0].trim()}`)) : null,
+          h('button', { class: 'chip', onclick: randomGame }, '🎲 Random game'))),
+      h('div', { class: 'home-grid' },
+        map,
+        h('aside', { class: 'side' },
+          side,
+          moonWeek(),
+          MQ.mistakes.cards().length ? h('a', { class: 'panel mistakes-tile', href: '#/mistakes' },
+            h('div', { class: 'big' }, '🔁'),
+            h('div', {}, h('div', { class: 'title' }, 'My mistakes'),
+              h('div', { class: 'muted' }, MQ.mistakes.dueCount() ? `${MQ.mistakes.dueCount()} cards to practise today` : 'All done for today ✓')),
+            h('span', { class: 'btn primary' }, '▶')) : null,
+          MQ.theme(store.me.id) === 'woods' ? secretMessage() : null)),
+      tasks.length ? h('div', { class: 'home-more' }, h('h2', {}, '🗂 My cards & tasks'), h('div', { class: 'grid' }, tasks.map(s => {
         const u = MQ.sets.setToUnit(s);
         return h('a', { class: 'tile', href: `#/s/${s.id}` },
           h('div', { class: 'big' }, u.icon), h('div', { class: 'title' }, s.title), h('div', { class: 'muted' }, u.subtitle),
           h('div', { class: 'stars' }, `★ ${unitStars(SETS, u)} / ${gameIds(u).length * 3}`));
-      })) : null,
-      h('h2', {}, MQ.themed('planets')),
-      h('div', { class: 'grid' }, myCourses.flatMap(c => c.units.map(u =>
-        h('a', { class: 'tile', href: `${c.href}/${u.id}` },
-          h('div', { class: 'big' }, u.icon || '🪐'),
-          h('div', { class: 'title' }, u.title),
-          h('div', { class: 'muted' }, c.title),
-          h('div', { class: 'stars' }, `★ ${unitStars(c, u)} / ${gameIds(u).length * 3}`)))),
-        showVerbs ? folderTile(courses.irr) : null,
-        showVpr ? folderTile(courses.vpr) : null,
-        folderTile(courses.magic)),
+      }))) : null,
+      h('div', { class: 'home-more' }, h('h2', {}, MQ.themed('planets')),
+        h('div', { class: 'grid' }, myCourses.flatMap(c => c.units.map(u =>
+          h('a', { class: 'tile', href: `${c.href}/${u.id}` },
+            h('div', { class: 'big' }, u.icon || '🪐'),
+            h('div', { class: 'title' }, u.title),
+            h('div', { class: 'muted' }, c.title),
+            h('div', { class: 'stars' }, `★ ${unitStars(c, u)} / ${gameIds(u).length * 3}`)))),
+          showVerbs ? folderTile(courses.irr) : null,
+          showVpr ? folderTile(courses.vpr) : null,
+          folderTile(courses.magic),
+          h('a', { class: 'tile', href: '#/add' }, h('div', { class: 'big' }, '＋'), h('div', { class: 'title' }, 'Add my words'), h('div', { class: 'muted' }, 'Make cards from any text')))),
     );
   }
 
@@ -259,9 +370,8 @@
   function unit(c, u) {
     app.append(
       c.folder ? h('a', { href: c.href, class: 'back' }, '← ' + c.title) : h('a', { href: '#/', class: 'back' }, '← Home'),
-      h('h1', {}, `${u.icon || '🪐'} ${u.title}`),
-      h('p', { class: 'muted' }, u.subtitle || ''),
-      unitPath(c, u),
+      starMap(c, u, [c.title, u.subtitle].filter(Boolean).join(' · ')) || h('h1', {}, `${u.icon || '🪐'} ${u.title}`),
+      pathSteps(c, u).length < 2 ? h('p', { class: 'muted' }, u.subtitle || '') : null,
       extraCards(c, u),
       u.note ? h('div', { class: 'panel note' }, h('div', { class: 'big-note' }, '💡'), h('p', {}, u.note)) : null,
       (u.grammar || []).length ? h('div', { class: 'panel left' },
@@ -300,26 +410,6 @@
     if (u.vpr && c.id !== 'vpr') steps.push('vpr');
     return steps;
   }
-  function unitPath(c, u) {
-    const steps = pathSteps(c, u);
-    if (steps.length < 2) return null;
-    const done = (id) => store.getStars(c.key(u, id)) >= 2;
-    const next = steps.find(id => !done(id));
-    const count = steps.filter(done).length;
-    const t = (id) => id === 'vpr' ? { icon: '📝', title: 'Unit test' } : MQ.gt(id, games[id]);
-    return h('div', { class: 'panel unit-path' },
-      h('div', { class: 'row space' }, h('h2', { style: 'margin:0' }, '🧭 Unit path'), h('span', { class: 'muted' }, `${count} / ${steps.length} done`)),
-      h('div', { class: 'progress' }, h('div', { style: `width:${Math.round(count / steps.length * 100)}%` })),
-      h('ol', { class: 'path-steps' }, steps.map((id, i) => h('li', { class: done(id) ? 'done' : id === next ? 'now' : '' },
-        h('a', { href: `${c.href}/${u.id}/${id}` },
-          h('span', { class: 'step-dot' }, done(id) ? '✓' : String(i + 1)),
-          h('span', { class: 'step-ico' }, t(id).icon), h('span', { class: 'step-name' }, t(id).title))))),
-      h('div', { class: 'row', style: 'margin-top:12px' }, next
-        ? h('a', { class: 'btn primary big-cta', href: `${c.href}/${u.id}/${next}` }, `▶ ${count ? 'Continue' : 'Start'}: ${t(next).title}`)
-        : h('div', { class: 'feedback good' }, '🎉 Path complete! Play any game below.')),
-      h('p', { class: 'hint' }, 'A step is done with ★★ or more.'));
-  }
-
   // ---------- "My mistakes" deck ----------
   const MISTAKES = { id: 'mistakes', title: 'My mistakes', icon: '🔁', href: '#', noUnit: true, key: () => MQ.mistakes.KEY_DECK };
   function mistakesScreen() {

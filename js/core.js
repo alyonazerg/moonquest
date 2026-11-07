@@ -175,8 +175,14 @@ window.MQ = (function () {
     const t = theme(studentId);
     document.body.classList.toggle('theme-magic', t === 'magic');
     document.body.classList.toggle('theme-woods', t === 'woods');
+    // light mode is part of the Space theme; magic school and mystery woods stay dark
+    document.body.classList.toggle('light', t === 'space' && mode(studentId) === 'light');
+    const meta = document.querySelector('meta[name=theme-color]');
+    if (meta) meta.content = document.body.classList.contains('light') ? '#F5F3FF' : '#120e2e';
     window.dispatchEvent(new CustomEvent('mq-theme', { detail: t }));
   }
+  function mode(studentId) { return load('mode_' + (studentId || 'guest'), 'dark'); }
+  function setMode(studentId, m) { save('mode_' + (studentId || 'guest'), m); applyTheme(studentId); }
   function setTheme(studentId, t) { save('theme_' + (studentId || 'guest'), t); applyTheme(studentId); }
 
   const isMagic = () => document.body.classList.contains('theme-magic');
@@ -226,5 +232,5 @@ window.MQ = (function () {
   const animOn = () => !document.body.classList.contains('no-anim');
   function setAnim(on) { save('anim', !!on); window.dispatchEvent(new Event('mq-anim')); }
 
-  return { slow, setSlow, animOn, setAnim, roleOf, speaker, isMagic, isWoods, themeNow, gt, themed, theme, applyTheme, setTheme, sfx, formSay, verbSay, nowUnits, unitOptions, findUnit, pic, courses, addUnit, load, save, h, shuffle, sample, norm, starsFor, uid, toast, speak, stopSpeech };
+  return { slow, setSlow, animOn, setAnim, roleOf, speaker, isMagic, isWoods, themeNow, gt, themed, theme, mode, setMode, applyTheme, setTheme, sfx, formSay, verbSay, nowUnits, unitOptions, findUnit, pic, courses, addUnit, load, save, h, shuffle, sample, norm, starsFor, uid, toast, speak, stopSpeech };
 })();
