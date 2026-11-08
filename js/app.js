@@ -34,7 +34,16 @@
         h('h3', {}, 'Games'),
         h('div', { class: 'row' },
           chip(MQ.slow(), MQ.slow() ? '🐢 No timers: on' : '🐢 No timers: off', () => MQ.setSlow(!MQ.slow())),
-          chip(MQ.animOn(), MQ.animOn() ? '✨ Animation: on' : '✨ Animation: off', () => MQ.setAnim(!MQ.animOn())))));
+          chip(MQ.animOn(), MQ.animOn() ? '✨ Animation: on' : '✨ Animation: off', () => MQ.setAnim(!MQ.animOn()))),
+        h('h3', {}, 'My progress'),
+        h('div', { class: 'row' },
+          ...MQ.nowUnits(store.me).filter(o => unitPlayed(o.c, o.u).length).map(o => h('button', { class: 'chip', onclick: () => resetUnit(o.c, o.u) }, `↺ ${o.u.title.split('·')[0].trim()} again`)),
+          h('button', { class: 'chip', onclick: async () => {
+            const keys = store.rows().map(r => r.key).filter(k => !k.startsWith('mistakes:'));
+            if (!keys.length) { MQ.toast('Nothing to reset yet'); return; }
+            if (!confirm('Reset ALL your stars and results? (Your “My mistakes” cards stay.)')) return;
+            try { await store.resetProgress(keys); MQ.toast('↺ Done'); route(); } catch (e) { MQ.toast('⚠️ ' + e.message); }
+          } }, '↺ Reset all my progress'))));
   }
 
   // ---------- star map: the games of a unit are stars; played ones light up and make a constellation ----------
@@ -92,9 +101,19 @@
     return h('section', { class: 'starmap-card' },
       h('div', { class: 'row space', style: 'align-items:flex-end;justify-content:space-between' },
         h('div', {}, h('div', { class: 'kicker' }, kicker || c.title), h('h1', {}, `${u.icon || '🪐'} ${u.title}`)),
-        h('span', { class: 'lit' }, `★ ${lit} / ${steps.length}`)),
+        h('div', { class: 'row', style: 'gap:8px' },
+          h('span', { class: 'lit' }, `★ ${lit} / ${steps.length}`),
+          unitPlayed(c, u).length ? h('button', { class: 'chip sm-reset', title: 'Start this unit again', 'aria-label': 'Start this unit again', onclick: () => resetUnit(c, u) }, '↺') : null)),
       h('div', { class: 'starmap' }, svg, stars),
       next ? null : h('p', { class: 'note' }, '🎉 Constellation complete!'));
+  }
+
+  // ↺ start a unit again: every game of it that has a result (stars or not)
+  const unitPlayed = (c, u) => store.me ? store.rows().map(r => r.key).filter(k => k.startsWith(`${c.id}/${u.id}/`)) : [];
+  async function resetUnit(c, u) {
+    if (!confirm(`Start “${u.title}” again? All its stars and results will be cleared.`)) return;
+    try { await store.resetProgress([...new Set([...unitPlayed(c, u), ...gameIds(u).map(id => c.key(u, id))])]); MQ.toast('↺ Done'); route(); }
+    catch (e) { MQ.toast('⚠️ ' + e.message); }
   }
 
   // a click on a star: it flashes, a ring flies out and the map zooms into it, then the game opens
@@ -411,10 +430,7 @@
           u.verbs.map(v => h('tr', {},
             h('td', {}, v.base), h('td', {}, v.v2), h('td', {}, v.v3),
             h('td', {}, h('button', { class: 'chip', onclick: () => MQ.speak(`${v.base}, ${v.v2}, ${v.v3}`) }, '🔊')))))) : null,
-      store.me && gameIds(u).some(id => store.getStars(c.key(u, id))) ? h('div', { class: 'row', style: 'margin:4px 0 12px' }, h('button', { class: 'chip', onclick: async () => {
-        if (!confirm('Start this unit again? All its stars will be cleared.')) return;
-        try { await store.resetProgress(gameIds(u).map(id => c.key(u, id))); MQ.toast('↺ Done'); route(); } catch (e) { MQ.toast('⚠️ ' + e.message); }
-      } }, '↺ Start the unit again')) : null,
+      unitPlayed(c, u).length ? h('div', { class: 'row', style: 'margin:4px 0 12px' }, h('button', { class: 'chip', onclick: () => resetUnit(c, u) }, '↺ Start the unit again')) : null,
     );
   }
 

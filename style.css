@@ -1185,3 +1185,4 @@ body.theme-woods .sm-star .name { background: rgba(6, 20, 26, .85); }
 .dict-diff { font-size: 1em; font-weight: 600; min-height: 1.4em; }
 .dict-diff .ok { color: var(--good); }
 .dict-diff .no { color: var(--bad); text-decoration: underline wavy; }
+.sm-reset { padding: .2em .6em; font-size: .7em; }
