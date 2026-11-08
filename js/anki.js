@@ -142,7 +142,7 @@
         rateRow.append(h('button', { class: 'rate ' + cls, onclick: (e) => { e.stopPropagation(); rate(r); } },
           h('span', { class: 'rate-time' }, fmt(nx.due - now)), h('span', {}, label)));
       });
-      hint.textContent = 'How well did you know it? (keys 1–4)';
+      hint.textContent = 'How well did you know it?' + (matchMedia('(hover: hover)').matches ? ' (keys 1–4)' : '');
     }
     function rate(r) {
       now = Date.now();

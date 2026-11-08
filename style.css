@@ -1024,3 +1024,30 @@ body.light .table tr:nth-child(even) td { background: rgba(91, 63, 224, .04); }
 .sm-burst { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; pointer-events: none; z-index: 2;
   box-shadow: 0 0 0 3px var(--star), 0 0 30px 6px rgba(255, 220, 120, .7); animation: sm-burst .75s ease-out forwards; }
 @keyframes sm-burst { from { transform: scale(.4); opacity: 1; } to { transform: scale(9); opacity: 0; } }
+
+/* ---------- spacing on phones: no crowded buttons ---------- */
+.rate.again, .rate.hard, .rate.good, .rate.easy {
+  border-color: transparent;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .55), inset 0 -8px 14px -6px rgba(0, 0, 0, .25), 0 8px 18px -6px rgba(0, 0, 0, .35);
+}
+@media (hover: none) { .kb-hint { display: none; } }
+@media (max-width: 560px) {
+  .rate-row { gap: 10px; margin-top: 16px; }
+  .rate { font-size: .82em; padding: .55em .2em; border-radius: 18px; }
+  .row { gap: 12px; }
+  .side .row { gap: 10px; }
+}
+@media (max-width: 480px) {
+  .logo-word { display: none; }
+  .logo { font-size: 1.3em; }
+  .topbar-inner { padding: 8px 14px; }
+  #who { gap: 10px; }
+  #who > .chip, #who > .btn, #who .settings > summary {
+    height: 42px; min-width: 42px; padding: 0 .7em; display: inline-flex; align-items: center; justify-content: center; font-size: .75em;
+  }
+  #who > a.btn.chip:first-child { max-width: 42vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; line-height: 42px; }
+  .home-more { gap: 12px !important; }
+}
+.card3d .face { border-color: transparent !important; }
+.rate-row { gap: 14px; }
+@media (max-width: 560px) { .rate-row { gap: 10px; } }
