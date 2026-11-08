@@ -72,4 +72,70 @@
     ],
   };
 
+
+  // ---------- Academy Stars 2 · Unit 3 · Our things ----------
+  if (MQ.courses.as2.units.find(u => u.id === 'u3')) unit('as2', 'u3').vpr = {
+    minutes: 45, title: 'Unit 3 test',
+    tasks: [
+      {
+        type: 'listen', instruction: I1,
+        dialog: [
+          ['Kirsty', 'Henry, look! Whose phone is this?'],
+          ['Henry', 'It isn’t my phone. I think it’s Eva’s phone. Her phone is blue.'],
+          ['Kirsty', 'And whose glasses are these?'],
+          ['Henry', 'They’re Grandpa’s glasses. He can’t read without them!'],
+          ['Kirsty', 'Is this our camera?'],
+          ['Henry', 'No, it isn’t our camera. Our camera is black. This is Owen and Eva’s camera.'],
+          ['Kirsty', 'What can you do with your new watch?'],
+          ['Henry', 'I can tell the time and I can listen to music on it.'],
+          ['Kirsty', 'Cool! Let’s take a photo of the garden.'],
+          ['Henry', 'OK! Smile!'],
+        ],
+        questions: [
+          { q: 'Whose phone is it?', options: ['Henry’s', 'Eva’s', 'Kirsty’s'], a: 2 },
+          { q: 'What colour is Eva’s phone?', options: ['blue', 'black', 'red'], a: 1 },
+          { q: 'The glasses are …', options: ['Mum’s.', 'Grandma’s.', 'Grandpa’s.'], a: 3 },
+          { q: 'Kirsty and Henry’s camera is …', options: ['black.', 'blue.', 'green.'], a: 1 },
+          { q: 'Henry can listen to music on his …', options: ['phone.', 'watch.', 'radio.'], a: 2 },
+        ],
+      },
+      {
+        type: 'read', instruction: I2, heading: 'Our music room',
+        text: 'Hello! I’m Lily and this is my brother Sam. We’ve got a music room in our house. Our guitar is in the music room. It’s brown and old. It was our grandpa’s guitar. Sam plays the guitar on Monday and Friday.\nThere’s a radio in the room, too. It’s Mum’s radio. She listens to music every morning. There’s also a computer. It’s our computer, but Dad uses it, too. We watch cartoons on it at the weekend.\nOur friends Tom and Ann come on Saturday. Their headphones are pink and green. We play games and sing songs together. I really like our music room. It’s my favourite room in the house!',
+        questions: [
+          { q: 'Where is the guitar?', options: ['in the kitchen', 'in the music room', 'in the garden'], a: 2 },
+          { q: 'The guitar was …', options: ['Grandpa’s.', 'Dad’s.', 'Tom’s.'], a: 1 },
+          { q: 'Who listens to the radio every morning?', options: ['Sam', 'Lily', 'Mum'], a: 3 },
+          { q: 'When do Lily and Sam watch cartoons?', options: ['on Monday', 'at the weekend', 'every morning'], a: 2 },
+          { q: 'Choose the true sentence.', options: ['Tom and Ann’s headphones are blue.', 'Sam plays the guitar on Friday.', 'Lily doesn’t like the music room.'], a: 2 },
+        ],
+      },
+      {
+        type: 'grammar', instruction: I3, heading: 'Lost property',
+        text: 'There is a big box in our classroom. Every Friday our teacher opens it. “{A} watch is this?” she asks. “It’s {B} watch,” says Max. “And these are {C} glasses,” says my friend Ella. Ben and Kate find {D} kite. It is yellow and red. My sister and I see {E} umbrella, too!',
+        gaps: [
+          { options: ['Who', 'Whose', 'What'], a: 2 },
+          { options: ['Max', 'Maxs', 'Max’s'], a: 3 },
+          { options: ['Ella’s', 'Ella', 'Ellas'], a: 1 },
+          { options: ['our', 'their', 'they'], a: 2 },
+          { options: ['our', 'their', 'we'], a: 1 },
+        ],
+      },
+      {
+        type: 'form', instruction: I4, heading: 'Daniel Smith',
+        text: 'Daniel is from England. He is 9 years old. He lives in York with his mum, dad and little sister. His favourite thing is his new camera. He takes photos of birds in the park. His favourite subject is Art. He plays football on Wednesday and does karate on Friday. He likes apples, but he doesn’t like bananas.',
+        fields: [
+          { label: 'Name', a: ['Daniel'] },
+          { label: 'Age', a: ['nine'], number: true },
+          { label: 'City', a: ['York'] },
+          { label: 'Number of children in the family', a: ['two'], number: true },
+          { label: 'Favourite thing', a: ['camera'] },
+          { label: 'Favourite subject', a: ['Art'] },
+          { label: 'Favourite sport', a: ['football'] },
+          { label: 'Favourite food', a: ['apples', 'apple'] },
+        ],
+      },
+    ],
+  };
+
 })();

@@ -208,8 +208,8 @@
         // text, shrunk to fit
         const text = round.answers[i];
         let fs = Math.min(26, W / 18);
-        g.font = `700 ${fs}px Lexend, system-ui, sans-serif`;
-        while (g.measureText(text).width > gw - 14 && fs > 11) { fs -= 1; g.font = `700 ${fs}px Lexend, system-ui, sans-serif`; }
+        g.font = `700 ${fs}px Onest, system-ui, sans-serif`;
+        while (g.measureText(text).width > gw - 14 && fs > 11) { fs -= 1; g.font = `700 ${fs}px Onest, system-ui, sans-serif`; }
         g.fillStyle = glow && i === round.right ? '#03341f' : '#fff';
         g.textAlign = 'center'; g.textBaseline = 'middle';
         g.fillText(text, laneX(i), y + gh / 2 + 1);
@@ -263,7 +263,7 @@
       // message
       if (msg) {
         g.globalAlpha = Math.min(1, msg.t * 2);
-        g.font = `700 ${Math.min(30, W / 16)}px Lexend, system-ui, sans-serif`;
+        g.font = `700 ${Math.min(30, W / 16)}px Onest, system-ui, sans-serif`;
         g.textAlign = 'center'; g.fillStyle = msg.color;
         g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 10;
         g.fillText(msg.text, W / 2, H * 0.42);

@@ -57,6 +57,7 @@
       save('assign', all);
     },
     async progress(studentId) { return load('progress_' + studentId, []); },
+    async deleteProgress(studentId, keys) { save('progress_' + studentId, load('progress_' + studentId, []).filter(p => !keys.includes(p.key))); },
     async saveProgress(studentId, rec) {
       const all = load('progress_' + studentId, []).filter(p => p.key !== rec.key);
       all.push(rec);
@@ -155,6 +156,12 @@
       if (!session) { const r = await db.rpc('save_progress', { sid: studentId, p: pinOf(studentId), rec }); if (!noFunction(r)) return must(r); }
       must(await db.from('progress').upsert(Object.assign({ student_id: studentId }, rec), { onConflict: 'student_id,key' }));
     },
+    async deleteProgress(studentId, keys) {
+      if (session) { must(await db.from('progress').delete().eq('student_id', studentId).in('key', keys)); return; }
+      const r = await db.rpc('reset_progress', { sid: studentId, p: pinOf(studentId), keys });
+      if (noFunction(r)) throw new Error('Учителю: выполните supabase/007_reset.sql в Supabase (см. SETUP.md).');
+      must(r);
+    },
     audioUrl: (text) => audioMap[text] || null,
     async saveImage(blob) {
       const path = 'img/' + uid() + '.webp';
@@ -220,6 +227,12 @@
   };
   // all progress rows of the student on this device (for the moon week on the home page)
   store.rows = () => Object.values(progressCache);
+  // start a game / unit / lesson again: its stars and results are cleared
+  store.resetProgress = async function (keys) {
+    if (!store.me || !keys.length) return;
+    await store.deleteProgress(store.me.id, keys);
+    keys.forEach(k => { delete progressCache[k]; });
+  };
   store.getStars = (key) => (progressCache[key] || {}).stars || 0;
   // Save one progress row. "data" holds the Anki schedule of a deck.
   let noDataColumn = false;

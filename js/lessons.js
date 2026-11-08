@@ -311,6 +311,10 @@ Titles and instructions in simple English for a child. Return ONLY JSON: {"title
       nav.innerHTML = '';
       nav.append(h('a', { href: '#/', class: 'back' }, '← Home'), h('div', { class: 'ls-navtitle' }, set.title),
         h('div', { class: 'muted', style: 'font-size:.65em' }, `${blocks.length} exercises`),
+        Object.keys(data.blocks).length ? h('button', { class: 'chip', style: 'align-self:flex-start;margin:6px 0', onclick: async () => {
+          if (!confirm('Start this lesson again? Your answers will be cleared.')) return;
+          try { await store.resetProgress([key]); MQ.route(); } catch (e) { toast('⚠️ ' + e.message); }
+        } }, '↺ Start again') : null,
         blocks.map((b, k) => {
           const r = data.blocks[k];
           const done = r && (r.t ? true : r.rec || r.text);

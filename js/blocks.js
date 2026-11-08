@@ -144,7 +144,7 @@
         g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = 1.5; g.stroke();
         g.fillStyle = 'rgba(255,255,255,.22)'; rr(x + p + 3, y + p + 3, S - p * 2 - 6, (S - p * 2) * 0.35, 7); g.fill();
         if (letter) {
-          g.fillStyle = '#fff'; g.font = `700 ${Math.floor(S * 0.5)}px Lexend, system-ui, sans-serif`;
+          g.fillStyle = '#fff'; g.font = `700 ${Math.floor(S * 0.5)}px Onest, system-ui, sans-serif`;
           g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(letter, x + S / 2, y + S / 2 + 2);
         } else {
           g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.arc(x + S * 0.35, y + S * 0.6, S * 0.08, 0, 7); g.arc(x + S * 0.62, y + S * 0.45, S * 0.06, 0, 7); g.fill();
@@ -187,7 +187,7 @@
         if (flash > 0) { g.fillStyle = `rgba(255,60,90,${flash * 0.3})`; g.fillRect(0, 0, W, H); flash = Math.max(0, flash - dt * 2.5); }
         if (msg) {
           g.globalAlpha = Math.min(1, msg.t * 2); g.fillStyle = msg.color;
-          g.font = `700 ${Math.min(26, W / 16)}px Lexend, system-ui, sans-serif`; g.textAlign = 'center';
+          g.font = `700 ${Math.min(26, W / 16)}px Onest, system-ui, sans-serif`; g.textAlign = 'center';
           g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 10; g.fillText(msg.text, W / 2, H * 0.4); g.shadowBlur = 0; g.globalAlpha = 1;
           msg.t -= dt; if (msg.t <= 0) msg = null;
         }

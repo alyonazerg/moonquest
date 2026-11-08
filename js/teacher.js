@@ -269,12 +269,20 @@
         weakSpots(deckRow && deckRow.data),
         rows.length ? h('h3', {}, '🎮 Все игры') : null,
         rows.length ? h('div', { class: 'table-wrap' }, h('table', { class: 'table' },
-          h('tr', {}, h('th', {}, 'Игра'), h('th', {}, 'Звёзды'), h('th', {}, 'Последний раз'), h('th', {}, 'Ошибки')),
+          h('tr', {}, h('th', {}, 'Игра'), h('th', {}, 'Звёзды'), h('th', {}, 'Последний раз'), h('th', {}, 'Ошибки'), h('th', {})),
           rows.map(p => h('tr', {},
             h('td', {}, keyLabel(p.key, setsById)),
             h('td', { class: 'stars' }, stars(p.stars || 0)),
             h('td', {}, `${p.correct ?? ''}/${p.total ?? ''} · ${fmtDate(p.updated_at)}${p.plays ? ` · ×${p.plays}` : ''}`),
-            h('td', { class: 'muted' }, (p.mistakes || []).join(', ')))))) : h('p', { class: 'muted' }, 'Ещё не играла.')),
+            h('td', { class: 'muted' }, (p.mistakes || []).join(', ')),
+            h('td', {}, h('button', { class: 'chip', title: 'Сбросить прохождение этой игры', onclick: async () => {
+              if (!confirm(`Сбросить «${keyLabel(p.key, setsById)}» у ${s.name}? Звёзды и результаты этой игры удалятся.`)) return;
+              try { await store.deleteProgress(id, [p.key]); toast('↺ Сброшено'); MQ.route(); } catch (e) { toast('⚠️ ' + e.message); }
+            } }, '↺')))))) : h('p', { class: 'muted' }, 'Ещё не играла.'),
+        rows.length ? h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:10px' }, h('button', { class: 'chip', onclick: async () => {
+          if (!confirm(`Сбросить ВСЁ прохождение у ${s.name}? Звёзды, результаты и уроки удалятся (колода ошибок останется).`)) return;
+          try { await store.deleteProgress(id, rows.map(p => p.key)); toast('↺ Сброшено'); MQ.route(); } catch (e) { toast('⚠️ ' + e.message); }
+        } }, '↺ Сбросить всё прохождение')) : null),
       rows.some(p => p.key.endsWith('/lesson')) ? h('div', { class: 'panel left' },
         h('h2', {}, '📚 Уроки: ответы, записи голоса и письменные работы'),
         rows.filter(p => p.key.endsWith('/lesson')).map(p => {

@@ -351,7 +351,7 @@ textarea.field, input[type=file].field { width: 100%; }
 .cw-box { position: relative; width: var(--cw); height: var(--cw); border-radius: 8px; background: rgba(255, 255, 255, .92); box-shadow: 0 3px 8px rgba(0, 0, 20, .35), inset 0 -2px 0 rgba(0, 0, 0, .12); }
 .cw-box.hl { background: #fff3b0; box-shadow: 0 0 0 2px var(--accent), 0 0 14px rgba(255, 211, 77, .6); }
 .cw-num { position: absolute; top: 1px; left: 3px; font-size: calc(var(--cw) * .28); color: #3a2a9a; font-weight: 900; line-height: 1; pointer-events: none; }
-.cw-cell { width: 100%; height: 100%; border: 0; background: transparent; text-align: center; font: 700 calc(var(--cw) * .55) Lexend, system-ui, sans-serif; color: #1b1b3a; text-transform: uppercase; padding: 0; outline: none; caret-color: transparent; }
+.cw-cell { width: 100%; height: 100%; border: 0; background: transparent; text-align: center; font: 700 calc(var(--cw) * .55) Onest, system-ui, sans-serif; color: #1b1b3a; text-transform: uppercase; padding: 0; outline: none; caret-color: transparent; }
 .cw-cell.ok { color: #128a52; }
 .cw-cell.bad { color: #e3405b; }
 .cw-cell.shown { color: #7b5cff; }
@@ -1141,3 +1141,9 @@ body.theme-magic .moonweek i.full { background: #e3b04b; border-color: #e3b04b; 
 body.theme-magic .stars { color: #f0c860; }
 body.theme-magic .game-head h1 { font-size: 1.4em; }
 @media (max-width: 480px) { body.theme-magic .game-head h1 { font-size: 1.2em; } body.theme-magic h1 { font-size: 1.5em; } }
+
+/* one font for English and Russian alike (ВПР mixes both on one line) */
+body, h1, h2, h3, .logo, .big-title, .ls-navtitle, .settings-pop h3, button, .btn, .field, .cell, input, select, textarea,
+body.theme-woods h1, body.theme-woods h2, body.theme-woods .logo, body.theme-woods .tile .title {
+  font-family: "Onest", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}

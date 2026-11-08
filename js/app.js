@@ -206,7 +206,7 @@
     const cur = mapUnits[pick];
     const randomGame = () => {
       // any of my units (textbook, folders) and any game in it
-      const pool = [...myCourses, ...(showVerbs ? [courses.irr] : []), courses.magic].flatMap(c => c.units.map(u => ({ c, u })));
+      const pool = [...myCourses, ...(showVerbs ? [courses.irr] : [])].flatMap(c => c.units.map(u => ({ c, u })));
       const { c, u } = pool[Math.floor(Math.random() * pool.length)];
       const ids = gameIds(u);
       location.hash = `${c.href}/${u.id}/${ids[Math.floor(Math.random() * ids.length)]}`;
@@ -264,7 +264,6 @@
             h('div', { class: 'stars' }, `★ ${unitStars(c, u)} / ${gameIds(u).length * 3}`)))),
           showVerbs ? folderTile(courses.irr) : null,
           showVpr ? folderTile(courses.vpr) : null,
-          folderTile(courses.magic),
           h('a', { class: 'tile', href: '#/add' }, h('div', { class: 'big' }, '＋'), h('div', { class: 'title' }, 'Add my words'), h('div', { class: 'muted' }, 'Make cards from any text')))),
     );
   }
@@ -408,6 +407,10 @@
           u.verbs.map(v => h('tr', {},
             h('td', {}, v.base), h('td', {}, v.v2), h('td', {}, v.v3),
             h('td', {}, h('button', { class: 'chip', onclick: () => MQ.speak(`${v.base}, ${v.v2}, ${v.v3}`) }, '🔊')))))) : null,
+      store.me && gameIds(u).some(id => store.getStars(c.key(u, id))) ? h('div', { class: 'row', style: 'margin:4px 0 12px' }, h('button', { class: 'chip', onclick: async () => {
+        if (!confirm('Start this unit again? All its stars will be cleared.')) return;
+        try { await store.resetProgress(gameIds(u).map(id => c.key(u, id))); MQ.toast('↺ Done'); route(); } catch (e) { MQ.toast('⚠️ ' + e.message); }
+      } }, '↺ Start the unit again')) : null,
       h('details', { class: 'panel more-games', open: pathSteps(c, u).length < 2 },
         h('summary', {}, `🎮 More games (${gameIds(u).length})`),
         h('div', { class: 'row', style: 'margin:10px 0 12px' }, h('button', { onclick: () => {

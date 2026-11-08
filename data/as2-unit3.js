@@ -1,0 +1,98 @@
+// Academy Stars 2 (2nd ed.) — Unit 3 "Our things"
+// Personal possessions; our / their; Whose … is this? It's Adam's.; br / fr / tr; play / do; Reading time 1: Our sweet mangoes
+MQ.addUnit('as2', {
+  id: 'u3', order: 3, icon: '📷',
+  title: 'Unit 3 · Our things',
+  subtitle: 'Possessions, our / their, Whose …?, ’s, br / fr / tr',
+  vocab: [
+    // personal possessions
+    { en: 'camera', ru: 'фотоаппарат', pic: '📷', group: 'Our things' },
+    { en: 'computer', ru: 'компьютер', pic: '💻', group: 'Our things' },
+    { en: 'glasses', ru: 'очки', pic: '👓', group: 'Our things' },
+    { en: 'guitar', ru: 'гитара', pic: '🎸', group: 'Our things' },
+    { en: 'phone', ru: 'телефон', pic: '📱', group: 'Our things' },
+    { en: 'radio', ru: 'радио', pic: '📻', group: 'Our things' },
+    { en: 'watch', ru: 'часы (наручные)', pic: '⌚', group: 'Our things' },
+    { en: 'headphones', ru: 'наушники', pic: '🎧', group: 'Our things' },
+    { en: 'tablet', ru: 'планшет', pic: '📲', group: 'Our things' },
+    { en: 'umbrella', ru: 'зонт', pic: '☂️', group: 'Our things' },
+    { en: 'kite', ru: 'воздушный змей', pic: '🪁', group: 'Our things' },
+    // things we do with them
+    { en: 'take a photo', ru: 'сфотографировать', pic: '📸', group: 'Things we do' },
+    { en: 'watch cartoons', ru: 'смотреть мультики', pic: '📺', group: 'Things we do' },
+    { en: 'listen to music', ru: 'слушать музыку', pic: '🎶', group: 'Things we do' },
+    { en: 'tell the time', ru: 'показывать время', pic: '🕐', group: 'Things we do' },
+    { en: 'play games', ru: 'играть в игры', pic: '🎮', group: 'Things we do' },
+    // describing things
+    { en: 'new', ru: 'новый', pic: '✨', group: 'Describing things' },
+    { en: 'cool', ru: 'классный', pic: '😎', group: 'Describing things' },
+    { en: 'great', ru: 'отличный', pic: '👍', group: 'Describing things' },
+    { en: 'amazing', ru: 'потрясающий', pic: '🤩', group: 'Describing things' },
+    // sounds br / fr / tr
+    { en: 'brown', ru: 'коричневый', pic: '🟫', group: 'Sounds br / fr / tr' },
+    { en: 'bridge', ru: 'мост', pic: '🌉', group: 'Sounds br / fr / tr' },
+    { en: 'bring', ru: 'приносить', pic: '🤲', group: 'Sounds br / fr / tr' },
+    { en: 'frog', ru: 'лягушка', pic: '🐸', group: 'Sounds br / fr / tr' },
+    { en: 'fruit', ru: 'фрукты', pic: '🍎', group: 'Sounds br / fr / tr' },
+    { en: 'friends', ru: 'друзья', pic: '🧑‍🤝‍🧑', group: 'Sounds br / fr / tr' },
+    { en: 'trousers', ru: 'брюки', pic: '👖', group: 'Sounds br / fr / tr' },
+    { en: 'tree', ru: 'дерево', pic: '🌳', group: 'Sounds br / fr / tr' },
+    // Reading time 1: Our sweet mangoes
+    { en: 'mango', ru: 'манго', pic: '🥭', group: 'Story: Our sweet mangoes' },
+    { en: 'elephant', ru: 'слон', pic: '🐘', group: 'Story: Our sweet mangoes' },
+    { en: 'monkey', ru: 'обезьяна', pic: '🐒', group: 'Story: Our sweet mangoes' },
+    { en: 'stone', ru: 'камень', pic: '🪨', group: 'Story: Our sweet mangoes' },
+    { en: 'river', ru: 'река', pic: '🏞️', group: 'Story: Our sweet mangoes' },
+    { en: 'angry', ru: 'сердитый', pic: '😠', group: 'Story: Our sweet mangoes' },
+    { en: 'hungry', ru: 'голодный', pic: '😋', group: 'Story: Our sweet mangoes' },
+  ],
+  grammar: [
+    {
+      title: 'our / their',
+      rule: 'we → our: It’s our camera. they → their: It’s their phone.',
+      items: [
+        { q: 'We’ve got a camera. It’s ___ camera.', options: ['our', 'their', 'my'], a: 'our', hint: 'we → our' },
+        { q: 'Kirsty and Henry have got a phone. It’s ___ phone.', options: ['their', 'our', 'his'], a: 'their', hint: 'they → their' },
+        { q: '___ guitar is green. (Kirsty and I)', options: ['Our', 'Their', 'Your'], a: 'Our', hint: 'Kirsty and I = we → our' },
+        { q: 'Look at Owen and Eva! ___ kite is a tiger.', options: ['Their', 'Our', 'Its'], a: 'Their', hint: 'Owen and Eva = they → their' },
+        { q: 'No, it isn’t our camera. It’s ___ camera. Look!', options: ['their', 'our', 'we'], a: 'their', hint: 'not ours → their' },
+        { q: 'We love ___ new computer!', options: ['our', 'their', 'us'], a: 'our', hint: 'we → our' },
+      ],
+    },
+    {
+      title: 'Whose …? + ’s',
+      rule: 'Whose watch is this? It’s Adam’s. Whose glasses are these? They’re Paulo’s.',
+      items: [
+        { q: '___ watch is this? It’s Adam’s.', options: ['Whose', 'Who', 'What'], a: 'Whose', hint: 'about the owner → Whose' },
+        { q: 'Whose phone is this? It’s ___ phone.', options: ['David’s', 'David', 'Davids'], a: 'David’s', hint: 'name + ’s' },
+        { q: 'Whose headphones are these? ___ Paulo’s.', options: ['They’re', 'It’s', 'This is'], a: 'They’re', hint: 'headphones (many) → They’re' },
+        { q: 'Whose radio is ___? It’s Mum’s.', options: ['this', 'these', 'they'], a: 'this', hint: 'one radio → this' },
+        { q: 'Whose glasses are ___? They’re Grandpa’s.', options: ['these', 'this', 'it'], a: 'these', hint: 'glasses → these' },
+        { q: 'It’s ___ guitar. (Kirsty)', options: ['Kirsty’s', 'Kirstys', 'Kirsty'], a: 'Kirsty’s', hint: 'Kirsty + ’s' },
+      ],
+    },
+    {
+      title: 'play or do?',
+      rule: 'play + a sport with a ball: play tennis. do + an activity: do karate, do drama.',
+      items: [
+        { q: 'We ___ basketball on Friday.', options: ['play', 'do'], a: 'play', hint: 'sport with a ball → play' },
+        { q: 'They ___ karate on Thursday.', options: ['do', 'play'], a: 'do', hint: 'activity → do' },
+        { q: 'I ___ drama with my friend.', options: ['do', 'play'], a: 'do', hint: 'drama → do' },
+        { q: 'Do you ___ tennis at the weekend?', options: ['play', 'do'], a: 'play', hint: 'tennis → play' },
+        { q: 'She ___ painting on Tuesday.', options: ['does', 'plays'], a: 'does', hint: 'painting → do' },
+      ],
+    },
+  ],
+  sentences: [
+    { en: 'It’s our camera.', pic: '📷' },
+    { en: 'It’s their phone.', pic: '📱' },
+    { en: 'Whose watch is this?', pic: '⌚', hint: 'It is a question.' },
+    { en: 'It’s Adam’s watch.', pic: '⌚' },
+    { en: 'Whose glasses are these?', pic: '👓', hint: 'It is a question.' },
+    { en: 'They’re Paulo’s headphones.', pic: '🎧' },
+    { en: 'You can take a photo with a phone.', pic: '📸' },
+    { en: 'What a cool phone!', pic: '😎' },
+    { en: 'They’re our mangoes, says Little Elephant.', pic: '🥭' },
+    { en: 'On Friday a big brown frog climbs down from a tree.', pic: '🐸' },
+  ],
+});
