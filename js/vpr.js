@@ -77,7 +77,10 @@
       if (!alive()) break;
       const sp = MQ.speaker(who);
       const role = MQ.roleOf(who);
-      let url = MQ.store && (MQ.store.audioUrl(`[${role}] ${text}`) || (role === 'woman' ? MQ.store.audioUrl(text) : null));
+      // "[girl*] …" = recorded with the child's own voice (as is); "[girl] …" = the woman's voice, played higher
+      const natural = MQ.store && MQ.store.audioUrl(`[${role}*] ${text}`);
+      let url = natural || (MQ.store && (MQ.store.audioUrl(`[${role}] ${text}`) || (role === 'woman' ? MQ.store.audioUrl(text) : null)));
+      const stored = !!url;
       // not recorded yet, but this device has the Mistral key: make the line with the role's Mistral voice now
       // (the browser's own male voices sound robotic)
       if (!url && MQ.ai && MQ.ai.hasKey()) {
@@ -100,7 +103,7 @@
           try {
             if (url) {
               const a = new Audio(url); player.audio = a;
-              if (MQ.ai) MQ.ai.childPitch(a, role); // children: the woman's voice, higher
+              if (MQ.ai && !natural) MQ.ai.childPitch(a, role, stored); // children: the woman's voice, higher
               a.onended = () => end(true); a.onerror = () => end(true);
               a.play().catch(() => end(true));
               return;

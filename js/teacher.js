@@ -114,7 +114,7 @@
     // dialogue lines are recorded with the voice of the speaker's role, saved as "[boy] text" etc.
     ((unit.vpr && unit.vpr.tasks) || []).forEach(x => (x.dialog || []).forEach(([who, line]) => {
       const r = MQ.roleOf(who);
-      if (r === 'woman') t.add(line); else t.add(`[${r}] ${line}`); // every role gets a Mistral voice (fallback in voiceFor)
+      if (r === 'woman') t.add(line); else t.add(`[${r}${(r === 'girl' || r === 'boy') && MQ.ai.roleVoice(r) ? '*' : ''}] ${line}`);
     }));
     (unit.grammar || []).forEach(g => g.items.forEach(it => { if (it.q.includes(' ')) t.add(it.q.replace('___', it.a)); }));
     (unit.verbs || []).forEach(v => { t.add(MQ.verbSay(v)); t.add(v.base); t.add(MQ.formSay(v, 'v2')); t.add(MQ.formSay(v, 'v3')); });
@@ -126,7 +126,7 @@
     let done = 0, failed = 0, lastErr = '';
     for (const text of texts) {
       statusEl.textContent = `🔊 Озвучиваю ${done + 1} / ${texts.length}: «${text}»`;
-      const m = text.match(/^\[(man|girl|boy)\] ([\s\S]*)$/);
+      const m = text.match(/^\[(man|girl|boy)\*?\] ([\s\S]*)$/);
       try { await store.saveAudio(text, await MQ.ai.tts(m ? m[2] : text, m ? MQ.ai.voiceFor(m[1]) : undefined)); }
       catch (e) { failed++; lastErr = e.message; if (failed >= 3 && done === 0) break; }
       done++;
@@ -627,6 +627,38 @@
     const msg = h('div', { class: 'hint' });
     const audioMsg = h('div', { class: 'hint' });
     const allUnits = Object.values(courses).flatMap(c => c.units);
+    // Azure: real children's voices for the girl / boy roles
+    const azKey = input({ type: 'password', value: s.azureKey, placeholder: 'ключ Azure Speech' });
+    const azRegion = input({ value: s.azureRegion || 'westeurope', placeholder: 'westeurope', style: 'max-width:12em' });
+    const azMsg = h('div', { class: 'hint' });
+    const azBox = h('div', { class: 'hint' });
+    const azSave = () => MQ.ai.saveSettings({ azureKey: azKey.value.trim(), azureRegion: azRegion.value.trim() || 'westeurope' });
+    const azurePanel = h('div', { class: 'panel' },
+      h('h2', {}, '🧒 Azure: детские голоса'),
+      h('p', { class: 'hint' }, 'Настоящие детские голоса Microsoft для ролей «девочка» и «мальчик». Бесплатно до 500 000 символов в месяц. Как получить ключ — в SETUP.md (раздел «Azure»).'),
+      h('label', { class: 'lbl' }, 'Ключ (Speech service → Keys and Endpoint → KEY 1)'), azKey,
+      h('label', { class: 'lbl' }, 'Регион (Location/Region там же), например westeurope'), azRegion,
+      h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:10px' },
+        h('button', { class: 'primary', onclick: () => {
+          azSave();
+          fields.girl.id.value = MQ.ai.AZURE_KIDS.girl; fields.boy.id.value = MQ.ai.AZURE_KIDS.boy; saveVoices();
+          azMsg.textContent = '✅ Девочка: Maisie (британский детский голос), мальчик: Ana пониже. Послушайте ▶ в блоке голосов ниже, затем нажмите «🔁 Перезаписать детские реплики».';
+        } }, '🧒 Поставить детские голоса Azure'),
+        (() => { const b = h('button', { onclick: () => { azSave(); play(MQ.ai.AZURE_KIDS.girl, b); } }, '▶ Девочка'); return b; })(),
+        (() => { const b = h('button', { onclick: () => { azSave(); play(MQ.ai.AZURE_KIDS.boy, b); } }, '▶ Мальчик'); return b; })(),
+        h('button', { class: 'chip', onclick: async () => {
+          azSave(); azBox.textContent = 'Загружаю…';
+          try {
+            const vs = await MQ.ai.azureVoices();
+            azBox.replaceChildren(h('div', { class: 'hint' }, '▶ — послушать; 👧 👦 — поставить для роли. Детские голоса — в начале списка.'),
+              ...vs.map(v => h('span', { class: 'voice-chip' },
+                (() => { const b = h('button', { class: 'chip', onclick: () => play(v.id, b) }, '▶'); return b; })(),
+                `${v.name} · ${v.lang} `,
+                h('button', { class: 'chip', title: 'Девочка', onclick: () => { fields.girl.id.value = v.id; saveVoices(); } }, '👧'),
+                h('button', { class: 'chip', title: 'Мальчик', onclick: () => { fields.boy.id.value = v.id; saveVoices(); } }, '👦'))));
+          } catch (e) { azBox.textContent = '⚠️ ' + e.message; }
+        } }, '📋 Английские голоса Azure')),
+      azMsg, azBox);
     app.append(
       h('div', { class: 'panel' },
         h('h2', {}, '✨ ИИ для карточек'),
@@ -644,6 +676,7 @@
             cardsMsg.textContent = '💾 Сохранено';
           } }, '💾 Сохранить')),
         cardsMsg),
+      azurePanel,
       h('div', { class: 'panel' },
         h('h2', {}, '🔊 Mistral: озвучка'),
         h('label', { class: 'lbl' }, 'API-ключ'), key,
@@ -668,7 +701,7 @@
           ? 'Слова и предложения озвучиваются голосом Mistral один раз и сохраняются в базе. Потом ученицы слышат этот голос без ключа.'
           : 'Работает после подключения базы. Сейчас голос Mistral звучит только на этом устройстве (если ключ сохранён).'),
         store.mode === 'cloud' ? h('button', { onclick: (e) => { e.target.disabled = true; recordAudio(allUnits, audioMsg).then(() => { e.target.disabled = false; }); } }, '🔊 Озвучить все юниты') : null,
-        store.mode === 'cloud' ? h('button', { title: 'Если поменяли голос девочки или мальчика', onclick: (e) => { e.target.disabled = true; recordAudio(allUnits, audioMsg, /^\[(girl|boy)\] /).then(() => { e.target.disabled = false; }); } }, '🔁 Перезаписать детские реплики') : null,
+        store.mode === 'cloud' ? h('button', { title: 'Если поменяли голос девочки или мальчика', onclick: (e) => { e.target.disabled = true; recordAudio(allUnits, audioMsg, /^\[(girl|boy)\*?\] /).then(() => { e.target.disabled = false; }); } }, '🔁 Перезаписать детские реплики') : null,
         audioMsg),
       h('div', { class: 'panel' },
         h('h2', {}, '🗄 База данных'),

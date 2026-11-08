@@ -11,6 +11,7 @@
     key: '', chatModel: 'mistral-small-latest', ttsModel: 'voxtral-mini-tts-latest', voice: DEFAULT_VOICE, refAudio: '', voice2: '', voiceGirl: '', voiceBoy: '', refMan: '', refGirl: '', refBoy: '',
     anthropicKey: '', claudeModel: 'claude-sonnet-5-5',
     openaiKey: '', openaiModel: 'gpt-4.1-mini', imageModel: 'gpt-image-1',
+    azureKey: '', azureRegion: 'westeurope',
   };
   const settings = Object.assign({}, defaults, MQ.load('ai', {}));
   if (!settings.voice) settings.voice = DEFAULT_VOICE;
@@ -243,7 +244,40 @@ Distribute the right answers (1/2/3) evenly. Return ONLY JSON:
   // a voice sample). On such an error the next combination is tried, and the one that works is remembered.
   const TTS_MODELS = ['voxtral-mini-tts-2603', 'voxtral-mini-tts-3', 'voxtral-mini-tts-latest'];
   // voice: a preset id, or { sample: base64 } (a voice made from a short recording)
+  // ---------- Microsoft Azure: real children's voices ----------
+  // A voice for a role is written as "azure:<voice name>" or "azure:<voice name>|<pitch>", e.g. "azure:en-US-AnaNeural|-12%".
+  const isAzure = (v) => typeof v === 'string' && v.startsWith('azure:');
+  const esc = (t) => String(t).replace(/[<>&'"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
+  const azureHost = () => `https://${(settings.azureRegion || 'westeurope').trim()}.tts.speech.microsoft.com`;
+  async function azureFetch(path, opts) {
+    if (!settings.azureKey) throw new Error('Нет ключа Azure. Добавьте его в Настройках → Azure.');
+    let res;
+    try { res = await fetch(azureHost() + path, Object.assign({}, opts, { headers: Object.assign({ 'Ocp-Apim-Subscription-Key': settings.azureKey }, opts && opts.headers) })); }
+    catch (e) { throw new Error('Не удалось связаться с Azure (проверьте регион или интернет): ' + e.message); }
+    if (res.status === 401) throw new Error('Azure 401: неверный ключ или регион (регион должен совпадать с ресурсом, например westeurope).');
+    if (!res.ok) throw new Error(`Azure ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    return res;
+  }
+  async function azureTts(text, voice) {
+    const [name, pitch] = voice.slice(6).split('|');
+    const lang = name.split('-').slice(0, 2).join('-') || 'en-GB';
+    const ssml = `<speak version='1.0' xml:lang='${lang}' xmlns='http://www.w3.org/2001/10/synthesis'><voice name='${esc(name)}'>`
+      + (pitch ? `<prosody pitch='${esc(pitch)}'>${esc(text)}</prosody>` : esc(text)) + '</voice></speak>';
+    const res = await azureFetch('/cognitiveservices/v1', { method: 'POST', headers: { 'Content-Type': 'application/ssml+xml', 'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3' }, body: ssml });
+    return new Blob([await res.arrayBuffer()], { type: 'audio/mpeg' });
+  }
+  // English voices of Azure; children's voices first
+  async function azureVoices() {
+    const list = await (await azureFetch('/cognitiveservices/voices/list')).json();
+    const child = (v) => /child|kid/i.test(JSON.stringify(v.VoiceTag || '')) || /Maisie|Ana(?!.*Multi)/.test(v.ShortName);
+    return list.filter(v => /^en-/.test(v.Locale))
+      .map(v => ({ id: 'azure:' + v.ShortName, name: (v.LocalName || v.DisplayName) + (child(v) ? ' (child)' : ''), lang: v.Locale, gender: v.Gender, child: child(v) }))
+      .sort((a, b) => (b.child - a.child) || a.lang.localeCompare(b.lang));
+  }
+  const AZURE_KIDS = { girl: 'azure:en-GB-MaisieNeural', boy: 'azure:en-US-AnaNeural|-12%' };
+
   async function tts(text, voice) {
+    if (isAzure(voice)) return azureTts(text, voice);
     let sample = null, preset = null;
     if (voice && typeof voice === 'object') sample = voice.sample;
     else if (voice) preset = voice;
@@ -297,8 +331,8 @@ Distribute the right answers (1/2/3) evenly. Return ONLY JSON:
   }
   // how much faster (and so higher) a child line is played: 0 = as recorded
   const childRate = (role) => (role === 'girl' || role === 'boy') && !roleVoice(role) ? (role === 'girl' ? 1.17 : 1.1) : 0;
-  function childPitch(audio, role) {
-    const r = childRate(role);
+  function childPitch(audio, role, force) {
+    const r = force ? (role === 'girl' ? 1.17 : role === 'boy' ? 1.1 : 0) : childRate(role);
     if (!r || !audio) return audio;
     audio.preservesPitch = false; audio.mozPreservesPitch = false; audio.webkitPreservesPitch = false;
     audio.playbackRate = r; audio.defaultPlaybackRate = r;
@@ -316,5 +350,5 @@ Distribute the right answers (1/2/3) evenly. Return ONLY JSON:
   // Voice sample file -> base64 (without the data: prefix)
   async function fileToBase64(file) { return (await fileToDataUrl(file)).replace(/^data:[^,]+,/, ''); }
 
-  MQ.ai = { askJson, unitMaterial, roleVoice, voiceFor, childRate, childPitch, ROLE_FIELDS, generateVpr, generateJeopardy, settings, saveSettings, hasKey: () => !!settings.key, recognizerReady, canMakeCards: () => recognizerReady() || MQ.store.mode === 'cloud', PROVIDER_NAMES, recognize, drawPicture, tts, voices, fileToBase64, DEFAULT_VOICE };
+  MQ.ai = { askJson, unitMaterial, roleVoice, voiceFor, childRate, childPitch, isAzure, azureVoices, AZURE_KIDS, ROLE_FIELDS, generateVpr, generateJeopardy, settings, saveSettings, hasKey: () => !!settings.key, recognizerReady, canMakeCards: () => recognizerReady() || MQ.store.mode === 'cloud', PROVIDER_NAMES, recognize, drawPicture, tts, voices, fileToBase64, DEFAULT_VOICE };
 })();
