@@ -120,8 +120,8 @@
     (unit.verbs || []).forEach(v => { t.add(MQ.verbSay(v)); t.add(v.base); t.add(MQ.formSay(v, 'v2')); t.add(MQ.formSay(v, 'v3')); });
     return [...t].filter(Boolean);
   }
-  async function recordAudio(units, statusEl) {
-    const texts = [...new Set(units.flatMap(spokenTexts))].filter(x => !store.audioUrl(x));
+  async function recordAudio(units, statusEl, force) {
+    const texts = [...new Set(units.flatMap(spokenTexts))].filter(x => !store.audioUrl(x) || (force && force.test(x)));
     if (!texts.length) { statusEl.textContent = '✅ Всё уже озвучено.'; return; }
     let done = 0, failed = 0, lastErr = '';
     for (const text of texts) {
@@ -554,21 +554,21 @@
     const ROLES = [
       ['woman', '👩 Женщина — основной голос (слова, предложения, мамы, учителя)'],
       ['man', '👨 Мужчина (папы, дедушки)'],
-      ['girl', '👧 Девочка'],
-      ['boy', '👦 Мальчик'],
+      ['girl', '👧 Девочка — если пусто, детский голос из женского'],
+      ['boy', '👦 Мальчик — если пусто, детский голос из женского'],
     ];
     const fields = {};
     const previews = {};
     let playing = null;
     const PHRASE = "Hello! I'm your English voice. Let's play and learn new words together!";
-    async function play(voiceSpec, btn) {
+    async function play(voiceSpec, btn, role) {
       MQ.ai.saveSettings({ key: key.value.trim() });
       if (playing) playing.pause();
       const k = typeof voiceSpec === 'object' ? 'sample:' + voiceSpec.sample.slice(0, 40) : voiceSpec;
       btn.disabled = true; btn.textContent = '⏳';
       try {
         if (!previews[k]) previews[k] = URL.createObjectURL(await MQ.ai.tts(PHRASE, voiceSpec));
-        playing = new Audio(previews[k]); await playing.play();
+        playing = new Audio(previews[k]); if (role) MQ.ai.childPitch(playing, role); await playing.play();
       } catch (e) { msg.textContent = '⚠️ ' + e.message; }
       btn.disabled = false; btn.textContent = '▶';
     }
@@ -587,9 +587,11 @@
         showInfo();
       };
       const playBtn = h('button', { class: 'chip', title: 'Послушать', onclick: () => {
-        const spec = MQ.ai.settings[refF] ? { sample: MQ.ai.settings[refF] } : (id.value.trim() || (role === 'woman' ? MQ.ai.DEFAULT_VOICE : ''));
+        const own = MQ.ai.settings[refF] ? { sample: MQ.ai.settings[refF] } : id.value.trim();
+        const child = !own && (role === 'girl' || role === 'boy');
+        const spec = own || (role === 'man' ? '' : MQ.ai.voiceFor('woman'));
         if (!spec) { msg.textContent = 'Для этой роли ещё нет голоса: выберите его в списке или загрузите образец.'; return; }
-        play(spec, playBtn);
+        play(spec, playBtn, child ? role : null);
       } }, '▶');
       fields[role] = { id, presetF };
       showInfo();
@@ -666,6 +668,7 @@
           ? 'Слова и предложения озвучиваются голосом Mistral один раз и сохраняются в базе. Потом ученицы слышат этот голос без ключа.'
           : 'Работает после подключения базы. Сейчас голос Mistral звучит только на этом устройстве (если ключ сохранён).'),
         store.mode === 'cloud' ? h('button', { onclick: (e) => { e.target.disabled = true; recordAudio(allUnits, audioMsg).then(() => { e.target.disabled = false; }); } }, '🔊 Озвучить все юниты') : null,
+        store.mode === 'cloud' ? h('button', { title: 'Если поменяли голос девочки или мальчика', onclick: (e) => { e.target.disabled = true; recordAudio(allUnits, audioMsg, /^\[(girl|boy)\] /).then(() => { e.target.disabled = false; }); } }, '🔁 Перезаписать детские реплики') : null,
         audioMsg),
       h('div', { class: 'panel' },
         h('h2', {}, '🗄 База данных'),

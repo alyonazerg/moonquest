@@ -291,8 +291,18 @@ Distribute the right answers (1/2/3) evenly. Return ONLY JSON:
 
   // The voice for a dialogue role, with a fallback, so a role without its own voice is never the robotic browser voice:
   // girl → woman, boy → man → woman.
+  // girl / boy without their own voice: the woman's voice, played higher and a little faster (see childRate)
   function voiceFor(role) {
-    return roleVoice(role) || (role === 'boy' ? roleVoice('man') : null) || roleVoice('woman');
+    return roleVoice(role) || roleVoice('woman');
+  }
+  // how much faster (and so higher) a child line is played: 0 = as recorded
+  const childRate = (role) => (role === 'girl' || role === 'boy') && !roleVoice(role) ? (role === 'girl' ? 1.17 : 1.1) : 0;
+  function childPitch(audio, role) {
+    const r = childRate(role);
+    if (!r || !audio) return audio;
+    audio.preservesPitch = false; audio.mozPreservesPitch = false; audio.webkitPreservesPitch = false;
+    audio.playbackRate = r; audio.defaultPlaybackRate = r;
+    return audio;
   }
 
   // List of voices (preset + saved in the workspace)
@@ -306,5 +316,5 @@ Distribute the right answers (1/2/3) evenly. Return ONLY JSON:
   // Voice sample file -> base64 (without the data: prefix)
   async function fileToBase64(file) { return (await fileToDataUrl(file)).replace(/^data:[^,]+,/, ''); }
 
-  MQ.ai = { askJson, unitMaterial, roleVoice, voiceFor, ROLE_FIELDS, generateVpr, generateJeopardy, settings, saveSettings, hasKey: () => !!settings.key, recognizerReady, canMakeCards: () => recognizerReady() || MQ.store.mode === 'cloud', PROVIDER_NAMES, recognize, drawPicture, tts, voices, fileToBase64, DEFAULT_VOICE };
+  MQ.ai = { askJson, unitMaterial, roleVoice, voiceFor, childRate, childPitch, ROLE_FIELDS, generateVpr, generateJeopardy, settings, saveSettings, hasKey: () => !!settings.key, recognizerReady, canMakeCards: () => recognizerReady() || MQ.store.mode === 'cloud', PROVIDER_NAMES, recognize, drawPicture, tts, voices, fileToBase64, DEFAULT_VOICE };
 })();

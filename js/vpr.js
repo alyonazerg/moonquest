@@ -100,6 +100,7 @@
           try {
             if (url) {
               const a = new Audio(url); player.audio = a;
+              if (MQ.ai) MQ.ai.childPitch(a, role); // children: the woman's voice, higher
               a.onended = () => end(true); a.onerror = () => end(true);
               a.play().catch(() => end(true));
               return;
