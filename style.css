@@ -1147,3 +1147,26 @@ body, h1, h2, h3, .logo, .big-title, .ls-navtitle, .settings-pop h3, button, .bt
 body.theme-woods h1, body.theme-woods h2, body.theme-woods .logo, body.theme-woods .tile .title {
   font-family: "Onest", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
+
+/* ---------- star map v2: centred nodes, labels on a backing so lines never cross the text ---------- */
+.sm-star { --node: 44px; transform: translate(-50%, calc(var(--node) / -2)); gap: 8px; width: 132px; }
+.sm-star .node { width: var(--node); height: var(--node); display: flex; align-items: center; justify-content: center; position: relative; }
+.sm-star .node .ico { width: var(--node); height: var(--node); }
+.sm-star.locked .dot { margin: 0; }
+.sm-star.next .ring { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+body:not(.no-anim) .sm-star.next .ring { animation: smspin2 14s linear infinite; }
+@keyframes smspin2 { to { transform: translate(-50%, -50%) rotate(360deg); } }
+.sm-star.next .name { margin-top: 26px; }
+.sm-star .name { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 3px 10px; border-radius: 10px;
+  background: rgba(11, 8, 34, .82); line-height: 1.25; font-size: .95em; }
+.sm-star .st { font-size: .85em; }
+body.light .sm-star .name { background: rgba(26, 20, 70, .9); }
+body.theme-magic .sm-star .name { background: rgba(236, 219, 178, .95); color: #2b1608; font-weight: 600; box-shadow: 0 1px 3px rgba(90, 50, 10, .25); text-shadow: none; }
+body.theme-magic .sm-star.locked .name { color: #5a3b1c; }
+body.theme-woods .sm-star .name { background: rgba(6, 20, 26, .85); }
+.starmap { height: 380px; }
+@media (max-width: 700px) {
+  .sm-star { --node: 36px; width: 92px; }
+  .sm-star.next .name { margin-top: 18px; }
+  .starmap { height: 320px; }
+}

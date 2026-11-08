@@ -39,11 +39,11 @@
 
   // ---------- star map: the games of a unit are stars; played ones light up and make a constellation ----------
   const STAR_POS = {
-    2: [[25, 60], [75, 40]],
-    3: [[15, 66], [50, 38], [85, 60]],
-    4: [[12, 70], [37, 40], [63, 62], [88, 30]],
-    5: [[10, 70], [30, 40], [50, 62], [70, 32], [90, 56]],
-    6: [[10, 72], [27, 44], [45, 60], [62, 30], [78, 54], [90, 22]],
+    2: [[25, 62], [75, 34]],
+    3: [[16, 62], [50, 34], [84, 62]],
+    4: [[12, 62], [37, 34], [63, 62], [88, 34]],
+    5: [[10, 62], [30, 34], [50, 62], [70, 34], [90, 62]],
+    6: [[9, 62], [25.4, 34], [41.8, 62], [58.2, 34], [74.6, 62], [91, 34]],
   };
   const STAR_SVG = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg>';
   const stepInfo = (id) => id === 'vpr' ? { icon: '📝', title: 'Unit test', desc: 'A test in the ВПР format.' } : MQ.gt(id, games[id]);
@@ -82,9 +82,11 @@
       const t = stepInfo(id), st = store.getStars(c.key(u, id));
       const cls = done(id) ? 'done' : id === next ? 'next' : 'locked';
       const a = h('a', { class: 'sm-star ' + cls, href: `${c.href}/${u.id}/${id}`, style: `left:${pos[i][0]}%;top:${pos[i][1]}%`, title: t.title, onclick: (e) => launch(e, a) });
-      if (cls === 'done') { a.insertAdjacentHTML('beforeend', STAR_SVG); a.append(h('span', { class: 'name' }, t.title), h('span', { class: 'st' }, starStr(st))); }
-      else if (cls === 'next') a.append(h('span', { class: 'ring' }, h('span', { class: 'core' }, t.icon)), h('span', { class: 'name' }, t.title));
-      else a.append(h('span', { class: 'dot' }), h('span', { class: 'name' }, t.title));
+      // .node is a fixed box whose centre sits exactly on the point; the label hangs below it
+      const node = h('span', { class: 'node' });
+      if (cls === 'done') { node.insertAdjacentHTML('beforeend', STAR_SVG); a.append(node, h('span', { class: 'name' }, t.title, h('span', { class: 'st' }, starStr(st)))); }
+      else if (cls === 'next') { node.append(h('span', { class: 'ring' }, h('span', { class: 'core' }, t.icon))); a.append(node, h('span', { class: 'name' }, t.title)); }
+      else { node.append(h('span', { class: 'dot' })); a.append(node, h('span', { class: 'name' }, t.title)); }
       return a;
     });
     return h('section', { class: 'starmap-card' },
@@ -103,7 +105,8 @@
     if (!card || card.classList.contains('warp')) return;
     const cr = card.getBoundingClientRect(), sr = star.getBoundingClientRect();
     const map = star.parentElement, mr = map.getBoundingClientRect();
-    const sx = sr.left + sr.width / 2, sy = sr.top + Math.min(sr.height / 2, 40);
+    const nr = (star.querySelector('.node') || star).getBoundingClientRect();
+    const sx = nr.left + nr.width / 2, sy = nr.top + nr.height / 2;
     card.style.transformOrigin = `${sx - cr.left}px ${sy - cr.top}px`;
     map.append(h('span', { class: 'sm-burst', style: `left:${sx - mr.left}px;top:${sy - mr.top}px` }));
     star.classList.add('launch');

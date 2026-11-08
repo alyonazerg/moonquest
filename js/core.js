@@ -50,7 +50,7 @@ window.MQ = (function () {
   const norm = (s) => String(s).toLowerCase().replace(/[’']/g, "'").replace(/\s+/g, ' ').replace(/[.?!,]/g, '').trim();
   function starsFor(correct, total) {
     const r = total ? correct / total : 0;
-    return r >= 0.9 ? 3 : r >= 0.7 ? 2 : 1;
+    return r >= 0.9 ? 3 : r >= 0.7 ? 2 : r >= 0.4 ? 1 : 0;
   }
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const toast = (text) => {
