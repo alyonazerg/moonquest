@@ -111,7 +111,7 @@
     const inner = h('div', { class: 'inner' });
     card.append(inner);
     const rateRow = h('div', { class: 'rate-row' });
-    const hint = h('div', { class: 'hint' }, 'Tap the card (or press Space) to see the answer');
+    const hint = h('div', { class: 'hint' });
     wrap.append(counts, card, h('div', { class: 'row', style: 'margin-top:14px' }, h('button', { class: 'chip', onclick: () => current && speak(current.faces.say) }, '🔊 Listen')), hint, rateRow);
 
     // The flip is animated from JavaScript (Web Animations), so it works in every browser
@@ -142,7 +142,7 @@
         rateRow.append(h('button', { class: 'rate ' + cls, onclick: (e) => { e.stopPropagation(); rate(r); } },
           h('span', { class: 'rate-time' }, fmt(nx.due - now)), h('span', {}, label)));
       });
-      hint.textContent = 'How well did you know it?' + (matchMedia('(hover: hover)').matches ? ' (keys 1–4)' : '');
+      hint.textContent = '';
     }
     function rate(r) {
       now = Date.now();
@@ -156,7 +156,7 @@
     }
     function show() {
       rateRow.innerHTML = '';
-      hint.textContent = 'Tap the card (or press Space) to see the answer';
+      hint.textContent = '';
       if (!queue.length) {
         document.removeEventListener('keydown', onKey);
         const ids = Object.keys(firstRating);
@@ -169,14 +169,14 @@
         : current.kind === 'qa' ? qaFaces(current.item) : current.kind === 'sent' ? sentFaces(current.item) : wordFaces(current.item));
       const left = new Set(queue.map(c => c.id)).size;
       counts.innerHTML = '';
-      counts.append(h('span', {}, `🃏 Cards left: ${left}`), h('span', {}, `✔ ${Object.keys(firstRating).length} / ${total}`));
+      counts.append(h('span', { title: 'Cards left' }, `🃏 ${left}`), h('span', {}, `✔ ${Object.keys(firstRating).length} / ${total}`));
       // reset to the front without animating
       flipped = false;
       if (anim) { anim.cancel(); anim = null; }
       card.classList.remove('flipped');
       inner.innerHTML = '';
       inner.append(
-        h('div', { class: 'face front' }, ...current.faces.front, h('div', { class: 'face-hint' }, '↻ tap to flip')),
+        h('div', { class: 'face front' }, ...current.faces.front, h('div', { class: 'face-hint', title: 'Tap to flip' }, '↻')),
         h('div', { class: 'face back' }, ...current.faces.back));
     }
     function onKey(e) {

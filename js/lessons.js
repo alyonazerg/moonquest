@@ -323,7 +323,7 @@ Titles and instructions in simple English for a child. Return ONLY JSON: {"title
       const head = h('div', { class: 'ls-head' }, h('h2', {}, `${k + 1}. ${b.title}`), h('span', { class: 'muted' }, TYPES[b.type].icon));
       const res = h('div', { class: 'feedback' });
       const prev = data.blocks[k];
-      if (prev && prev.t) { res.className = 'feedback soft'; res.textContent = `Last time: ${prev.c} of ${prev.t}. You can do it again.`; }
+      if (prev && prev.t) { res.className = 'feedback soft'; res.textContent = `Last time: ${prev.c} / ${prev.t}`; }
       let body;
       if (b.type === 'speak') body = h('div', {}, h('div', { class: 'ls-text' }, b.prompt), speakUI(b, prev, async (r) => { data.blocks[k] = r; await save(); }));
       else if (b.type === 'write') body = h('div', {}, h('div', { class: 'ls-text' }, b.prompt), writeUI(b, prev, async (r) => { data.blocks[k] = r; await save(); }));
@@ -332,7 +332,7 @@ Titles and instructions in simple English for a child. Return ONLY JSON: {"title
         body = h('div', {}, ui.el, h('div', { class: 'row', style: 'justify-content:flex-start;margin-top:10px' }, h('button', { class: 'primary', onclick: async () => {
           const r = ui.check();
           res.className = 'feedback ' + (r.c === r.t ? 'good' : 'bad');
-          res.textContent = r.c === r.t ? `Excellent! ${r.c} of ${r.t} ✓` : `${r.c} of ${r.t} correct. The right answers are green.`;
+          res.textContent = r.c === r.t ? `Excellent! ${r.c} / ${r.t} ✓` : `${r.c} / ${r.t}`;
           if (r.c === r.t) MQ.sfx.win(); else MQ.sfx.bad();
           data.blocks[k] = { c: r.c, t: r.t, at: Date.now() };
           if (r.wrong.length) MQ.mistakes.add(r.wrong).catch(() => {});

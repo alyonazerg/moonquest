@@ -1051,3 +1051,9 @@ body.light .table tr:nth-child(even) td { background: rgba(91, 63, 224, .04); }
 .card3d .face { border-color: transparent !important; }
 .rate-row { gap: 14px; }
 @media (max-width: 560px) { .rate-row { gap: 10px; } }
+
+/* ---------- less text on the students' pages ---------- */
+body:not(.teacher-page) .tile .muted { display: none; }
+body:not(.teacher-page) .tile .title { margin-bottom: 4px; }
+.anki .hint:empty, .hint:empty { display: none; }
+.face-hint { font-size: 1.1em; opacity: .55; }

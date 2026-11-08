@@ -89,7 +89,7 @@
     });
     let input = null;
     if (typing) {
-      input = typeField('⌨️ …or type the answer and press Enter');
+      input = typeField('⌨️ …or type it');
       input.addEventListener('keydown', (e) => {
         if (e.key !== 'Enter' || !input.value.trim()) return;
         e.preventDefault();
@@ -336,7 +336,7 @@
           if (norm(built) === norm(words.join(' '))) { speak(s.en); answer(tries === 0, `👍 Good, you got it! It is: “${s.en}”`, true); }
           else { tries++; msg.textContent = 'Not yet. Tap a word to take it back and try again.'; }
         };
-        const typed = typeField('⌨️ …or type the sentence and press Enter');
+        const typed = typeField('⌨️ …or type it');
         typed.addEventListener('keydown', (e) => {
           if (e.key !== 'Enter' || !typed.value.trim()) return;
           e.preventDefault();

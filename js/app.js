@@ -89,9 +89,9 @@
     return h('section', { class: 'starmap-card' },
       h('div', { class: 'row space', style: 'align-items:flex-end;justify-content:space-between' },
         h('div', {}, h('div', { class: 'kicker' }, kicker || c.title), h('h1', {}, `${u.icon || '🪐'} ${u.title}`)),
-        h('span', { class: 'lit' }, `★ ${lit} of ${steps.length} stars lit`)),
+        h('span', { class: 'lit' }, `★ ${lit} / ${steps.length}`)),
       h('div', { class: 'starmap' }, svg, stars),
-      h('p', { class: 'note' }, next ? `Light all ${steps.length} stars and the constellation of this unit appears on your sky. A star lights up with ★★.` : '🎉 The constellation is complete! Play any game to get more stars.'));
+      next ? null : h('p', { class: 'note' }, '🎉 Constellation complete!'));
   }
 
   // a click on a star: it flashes, a ring flies out and the map zooms into it, then the game opens
@@ -127,9 +127,8 @@
     });
     const today = played.has(dayKey(now));
     return h('div', { class: 'panel' },
-      h('div', { class: 'row', style: 'justify-content:space-between' }, h('h2', { style: 'margin:0;font-size:.85em' }, '🌙 Moon week'), h('span', { class: 'stars', style: 'font-size:.7em;letter-spacing:0' }, `${count} of 7 days`)),
-      h('div', { class: 'moonweek' }, days),
-      h('div', { class: 'muted', style: 'font-size:.68em' }, today ? 'Full moon today! Great job.' : 'Play one game today to make a full moon.'));
+      h('div', { class: 'row', style: 'justify-content:space-between' }, h('h2', { style: 'margin:0;font-size:.85em' }, '🌙 Moon week'), h('span', { class: 'stars', style: 'font-size:.7em;letter-spacing:0' }, `${count} / 7`)),
+      h('div', { class: 'moonweek', title: today ? 'Full moon today!' : 'Play one game today to make a full moon' }, days));
   }
 
   // ---------- screens ----------
@@ -220,7 +219,6 @@
         h('div', { class: 'panel' },
           h('div', { class: 'kicker' }, next ? 'Next game' : 'Unit complete'),
           h('div', { class: 'big-title' }, next ? `${t.icon} ${t.title}` : '🎉 All stars are lit!'),
-          h('div', { class: 'muted', style: 'font-size:.72em' }, next ? t.desc : 'Play any game to get 3 stars everywhere.'),
           h('a', { class: 'btn primary', href: next ? `${cur.c.href}/${cur.u.id}/${next}` : `${cur.c.href}/${cur.u.id}` }, next ? '▶ Play' : 'Open the unit'),
           h('div', { class: 'row', style: 'margin-top:8px;justify-content:space-between' },
             h('a', { class: 'btn chip', href: `${cur.c.href}/${cur.u.id}` }, 'All games'),
@@ -241,7 +239,7 @@
           MQ.mistakes.cards().length ? h('a', { class: 'panel mistakes-tile', href: '#/mistakes' },
             h('div', { class: 'big' }, '🔁'),
             h('div', {}, h('div', { class: 'title' }, 'My mistakes'),
-              h('div', { class: 'muted' }, MQ.mistakes.dueCount() ? `${MQ.mistakes.dueCount()} cards to practise today` : 'All done for today ✓')),
+              h('div', { class: 'muted' }, MQ.mistakes.dueCount() ? `${MQ.mistakes.dueCount()} today` : '✓')),
             h('span', { class: 'btn primary' }, '▶')) : null,
           MQ.theme(store.me.id) === 'woods' ? secretMessage() : null)),
       tasks.length ? h('div', { class: 'home-more' }, h('h2', {}, '🗂 My cards & tasks'), h('div', { class: 'grid' }, tasks.map(s => {
@@ -317,6 +315,7 @@
     const key = `${c.id}/${u.id}`;
     store.sets().then(sets => {
       const list = sets.filter(s => s.unit_key === key && (!s.student_id || s.student_id === store.me.id));
+      if (!list.length) { box.append(h('div', { class: 'row', style: 'margin:6px 0 14px' }, h('a', { class: 'btn chip', href: `#/add/${c.id}/${u.id}` }, '＋ Add my words'))); return; }
       box.append(h('div', { class: 'panel' },
         h('h2', {}, '🃏 Extra cards'),
         list.length ? h('div', { class: 'grid' }, list.map(s => {
@@ -481,10 +480,10 @@
     app.append(
       // compact header so the game fits on one screen
       h('div', { class: 'game-head' },
-        h('a', { href: `${c.href}/${u.id}`, class: 'back' }, '← ' + u.title),
-        h('h1', {}, `${tg.icon} ${tg.title}`,
+        h('a', { href: `${c.href}/${u.id}`, class: 'back' }, '← ' + String(u.title).split('·')[0].trim()),
+        h('h1', { title: tg.desc || '' }, `${tg.icon} ${tg.title}`,
           h('button', { class: 'chip restart', title: 'Start again: clear all answers', onclick: () => { MQ.stopSpeech(); play(c, u, gameId, itemsOverride, label); } }, '🔄')),
-        h('p', { class: 'muted' }, tg.desc, itemsOverride ? ` (${label})` : '')),
+        itemsOverride ? h('p', { class: 'muted' }, label) : null),
       root,
     );
     document.body.classList.add('in-game');
@@ -521,6 +520,7 @@
     MQ.stopSpeech();
     app.innerHTML = '';
     document.body.classList.remove('in-game');
+    document.body.classList.toggle('teacher-page', (location.hash || '').startsWith('#/teacher'));
     MQ.applyTheme(store.me && store.me.id);
     renderWho();
     const parts = (location.hash || '#/').split('/');
