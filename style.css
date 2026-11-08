@@ -1175,3 +1175,13 @@ body.theme-woods .sm-star .name { background: rgba(6, 20, 26, .85); }
 .em-day { margin-top: 12px; }
 .em-word { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 12px; border-radius: 999px; background: var(--sg-btn); font-size: .8em; }
 .em-word .chip { padding: .1em .5em; font-size: .8em; }
+/* find the mistake + dictation */
+.fx-line { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 12px 0; }
+.fx-word { font-size: 1em; padding: .4em .8em; }
+.fx-word.nope { box-shadow: 0 0 0 3px rgba(255, 138, 122, .5); }
+.fx-word.found { box-shadow: 0 0 0 3px rgba(255, 138, 122, .8); text-decoration: line-through; }
+.fx-word.fixed { box-shadow: 0 0 0 3px rgba(69, 214, 160, .7); text-decoration: none; }
+.dict-field { width: min(640px, 100%); font-size: 1em; margin: 10px auto 4px; display: block; }
+.dict-diff { font-size: 1em; font-weight: 600; min-height: 1.4em; }
+.dict-diff .ok { color: var(--good); }
+.dict-diff .no { color: var(--bad); text-decoration: underline wavy; }

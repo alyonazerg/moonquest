@@ -42,7 +42,7 @@
       const body = h('div', { class: 'center' });
       const info = renderRound(item, body, answer) || {};
       const dunnoBtn = info.answerText
-        ? h('button', { class: 'ghost', onclick: () => { answer(false, 'Answer: ' + info.answerText); if (info.onReveal) info.onReveal(); } }, "🤷 I don't know")
+        ? h('button', { class: 'ghost', onclick: () => { answer(false, 'Answer: ' + info.answerText + (info.why ? '  ·  💡 ' + info.why : '')); if (info.onReveal) info.onReveal(); } }, "🤷 I don't know")
         : null;
       wrap.append(
         h('div', { class: 'row space muted' }, h('span', {}, `${i + 1} / ${items.length}`), h('span', {}, `✔ ${correct}`)),
@@ -306,7 +306,7 @@
             answer(ok, msg);
           }, '💡 ' + (it.hint || it.rule), '', true),
         );
-        return { answerText: it.a };
+        return { answerText: it.a, why: it.hint || it.rule };
       });
     },
   };
@@ -334,7 +334,11 @@
           if (picked.length !== words.length) return;
           const built = picked.map(w => w.t).join(' ');
           if (norm(built) === norm(words.join(' '))) { speak(s.en); answer(tries === 0, `👍 Good, you got it! It is: “${s.en}”`, true); }
-          else { tries++; msg.textContent = 'Not yet. Tap a word to take it back and try again.'; }
+          else {
+            tries++;
+            const i = picked.findIndex((w, n) => norm(w.t) !== norm(words[n]));
+            msg.textContent = i <= 0 ? `Not yet. Start with “${words[0]}”.` : `Not yet. “${picked.slice(0, i).map(w => w.t).join(' ')}” is right. What comes next?`;
+          }
         };
         const typed = typeField('⌨️ …or type it');
         typed.addEventListener('keydown', (e) => {

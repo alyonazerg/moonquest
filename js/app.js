@@ -420,7 +420,7 @@
 
   // games of a unit in two groups: vocabulary and grammar (+ the unit test)
   const VOCAB_GAMES = ['flash', 'listen', 'match', 'memory', 'spell', 'hangman', 'crossword', 'sort', 'whack', 'wrunner', 'blocks', 'odd'];
-  const GRAMMAR_GAMES = ['quiz', 'gapfill', 'order', 'jeopardy', 'vflash', 'vmemory', 'vchoose', 'vspell', 'vtype', 'vrunner'];
+  const GRAMMAR_GAMES = ['quiz', 'gapfill', 'fixit', 'order', 'dictation', 'jeopardy', 'vflash', 'vmemory', 'vchoose', 'vspell', 'vtype', 'vrunner'];
   function gameSections(c, u) {
     const ids = gameIds(u);
     const tile = (id) => {

@@ -349,7 +349,7 @@
           const gap = h('button', { class: 'gf-gap' + (k === selGap && !checked ? ' sel' : '') + (checked ? (filled[k] && filled[k].w === it.a ? ' ok' : ' bad') : ''),
             onclick: () => { if (checked) return; if (filled[k]) { filled[k] = null; } selGap = k; render(); } }, filled[k] ? filled[k].w : '      ');
           list.append(h('li', {}, it.pic ? it.pic + ' ' : '', pre, gap, rest.join('___'),
-            checked && !(filled[k] && filled[k].w === it.a) ? h('span', { class: 'gf-fix' }, ' → ' + it.a) : null));
+            checked && !(filled[k] && filled[k].w === it.a) ? h('span', { class: 'gf-fix' }, ' → ' + it.a + (it.hint ? `  (💡 ${it.hint})` : '')) : null));
         });
       };
       function put(b) {
