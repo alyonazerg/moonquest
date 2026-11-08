@@ -201,7 +201,7 @@
     // the irregular verbs galaxy is for everyone except the Academy Stars 2 course
     const own = store.me.course && courses[store.me.course] ? [courses[store.me.course]] : [courses.as2, courses.as4];
     const myCourses = own.filter(c => c.id !== 'irr');
-    const showVerbs = store.me.course !== 'as2';
+    const showVerbs = true; // the irregular verbs folder is for both students
     const showVpr = store.me.course === 'as2'; // ВПР is only for the Academy Stars 2 pupil
     // the star map shows a unit we study now (several: switch with chips)
     const mapUnits = now.length ? now : myCourses.flatMap(c => c.units.map(u => ({ c, u }))).slice(0, 1);
@@ -396,6 +396,7 @@
       c.folder ? h('a', { href: c.href, class: 'back' }, '← ' + c.title) : h('a', { href: '#/', class: 'back' }, '← Home'),
       starMap(c, u, [c.title, u.subtitle].filter(Boolean).join(' · ')) || h('h1', {}, `${u.icon || '🪐'} ${u.title}`),
       pathSteps(c, u).length < 2 ? h('p', { class: 'muted' }, u.subtitle || '') : null,
+      gameSections(c, u),
       extraCards(c, u),
       u.note ? h('div', { class: 'panel note' }, h('div', { class: 'big-note' }, '💡'), h('p', {}, u.note)) : null,
       (u.grammar || []).length ? h('div', { class: 'panel left' },
@@ -414,21 +415,46 @@
         if (!confirm('Start this unit again? All its stars will be cleared.')) return;
         try { await store.resetProgress(gameIds(u).map(id => c.key(u, id))); MQ.toast('↺ Done'); route(); } catch (e) { MQ.toast('⚠️ ' + e.message); }
       } }, '↺ Start the unit again')) : null,
-      h('details', { class: 'panel more-games', open: pathSteps(c, u).length < 2 },
-        h('summary', {}, `🎮 More games (${gameIds(u).length})`),
-        h('div', { class: 'row', style: 'margin:10px 0 12px' }, h('button', { onclick: () => {
-          const ids = gameIds(u);
-          location.hash = `${c.href}/${u.id}/${ids[Math.floor(Math.random() * ids.length)]}`;
-        } }, '🎲 Random game')),
-      h('div', { class: 'grid' }, gameIds(u).map(id => {
-        const g = games[id];
-        return h('a', { class: 'tile', href: `${c.href}/${u.id}/${id}` },
-          h('div', { class: 'big' }, MQ.gt(id, g).icon),
-          h('div', { class: 'title' }, MQ.gt(id, g).title),
-          h('div', { class: 'muted' }, MQ.gt(id, g).desc),
-          h('div', { class: 'stars' }, starStr(store.getStars(c.key(u, id)))));
-      }))),
     );
+  }
+
+  // games of a unit in two groups: vocabulary and grammar (+ the unit test)
+  const VOCAB_GAMES = ['flash', 'listen', 'match', 'memory', 'spell', 'hangman', 'crossword', 'sort', 'whack', 'wrunner', 'blocks', 'odd'];
+  const GRAMMAR_GAMES = ['quiz', 'gapfill', 'order', 'jeopardy', 'vflash', 'vmemory', 'vchoose', 'vspell', 'vtype', 'vrunner'];
+  function gameSections(c, u) {
+    const ids = gameIds(u);
+    const tile = (id) => {
+      const g = MQ.gt(id, games[id]);
+      return h('a', { class: 'tile', href: `${c.href}/${u.id}/${id}`, title: g.desc || '' },
+        h('div', { class: 'big' }, g.icon), h('div', { class: 'title' }, g.title),
+        h('div', { class: 'stars' }, starStr(store.getStars(c.key(u, id)))));
+    };
+    const group = (label, list) => list.length ? h('div', { class: 'game-group' }, h('h2', {}, label), h('div', { class: 'grid' }, list.map(tile))) : null;
+    const vocab = ids.filter(id => VOCAB_GAMES.includes(id));
+    const grammar = ids.filter(id => GRAMMAR_GAMES.includes(id));
+    const test = ids.filter(id => id === 'vpr');
+    const other = ids.filter(id => !vocab.includes(id) && !grammar.includes(id) && !test.includes(id));
+    return h('div', { class: 'game-sections' },
+      h('div', { class: 'row', style: 'margin:6px 0 4px' }, h('button', { class: 'chip', onclick: () => {
+        location.hash = `${c.href}/${u.id}/${ids[Math.floor(Math.random() * ids.length)]}`;
+      } }, '🎲 Random game')),
+      group('🔤 Vocabulary', [...vocab, ...other]),
+      group('🧩 Grammar', grammar),
+      group('📝 Test', test));
+  }
+
+  // 🌱 emergent vocabulary: words the teacher adds after a lesson join the vocabulary games of the units we study now
+  async function withEmergent(c, u) {
+    if (!u || !store.me || c.folder || c === SETS) return u;
+    const now = MQ.nowUnits(store.me);
+    if (now.length && !now.some(o => o.c === c && o.u.id === u.id)) return u;
+    let sets = [];
+    try { sets = await store.sets(); } catch (e) { return u; }
+    const set = sets.find(s => s.unit_key === 'emergent' && s.student_id === store.me.id);
+    if (!set || !(set.items || []).length) return u;
+    const have = new Set((u.vocab || []).map(v => String(v.en).toLowerCase()));
+    const extra = set.items.slice(-20).filter(w => w.en && !have.has(w.en.toLowerCase())).map(w => Object.assign({}, w, { group: '🌱 From our lessons' }));
+    return extra.length ? Object.assign({}, u, { vocab: [...(u.vocab || []), ...extra] }) : u;
   }
 
   // ---------- unit path: a few steps in a good order, one main button ----------
@@ -478,7 +504,11 @@
           h('div', { class: 'row' },
             mistakes.length ? h('button', { class: 'primary', onclick: () => play(c, u, gameId, MQ.shuffle(mistakes), 'mistakes only') }, `🔁 Practise mistakes (${mistakes.length})`) : null,
             h('button', { onclick: () => play(c, u, gameId, itemsOverride, label) }, '▶ Play again'),
-            h('a', { class: 'btn', href: `${c.href}/${u.id}` }, MQ.themed('back')))));
+            h('a', { class: 'btn', href: `${c.href}/${u.id}` }, MQ.themed('back'))),
+          store.me && store.getStars(c.key(u, gameId)) ? h('div', { class: 'row', style: 'margin-top:10px' }, h('button', { class: 'chip', onclick: async (e) => {
+            if (!confirm('Clear your stars for this game?')) return;
+            try { await store.resetProgress([c.key(u, gameId)]); e.target.textContent = '✓ Cleared'; e.target.disabled = true; } catch (err) { MQ.toast('⚠️ ' + err.message); }
+          } }, '↺ Clear my stars')) : null));
       },
     };
     const tg = MQ.gt(gameId, g);
@@ -542,7 +572,7 @@
       else if (top === 's' && a) await setRoute(a, b);
       else if (top === 'c' && courses[a]) {
         const c = courses[a];
-        const u = c.units.find(x => x.id === b);
+        const u = await withEmergent(c, c.units.find(x => x.id === b));
         if (u && c3 && games[c3]) play(c, u, c3);
         else if (u) unit(c, u);
         else course(c);
@@ -562,6 +592,7 @@
     if (my === seq) window.scrollTo(0, 0);
   }
   MQ.route = route;
+  MQ.withEmergent = withEmergent;
 
   // A link to the page we are already on (e.g. "← Unit" after "Practise") must still re-render.
   document.addEventListener('click', (e) => {

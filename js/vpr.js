@@ -80,10 +80,10 @@
       let url = MQ.store && (MQ.store.audioUrl(`[${role}] ${text}`) || (role === 'woman' ? MQ.store.audioUrl(text) : null));
       // not recorded yet, but this device has the Mistral key: make the line with the role's Mistral voice now
       // (the browser's own male voices sound robotic)
-      if (!url && MQ.ai && MQ.ai.hasKey() && MQ.ai.roleVoice(role)) {
+      if (!url && MQ.ai && MQ.ai.hasKey()) {
         const k = `[${role}] ${text}`;
         try {
-          if (!ttsCache[k]) ttsCache[k] = URL.createObjectURL(await MQ.ai.tts(text, role === 'woman' ? undefined : MQ.ai.roleVoice(role)));
+          if (!ttsCache[k]) ttsCache[k] = URL.createObjectURL(await MQ.ai.tts(text, role === 'woman' ? undefined : MQ.ai.voiceFor(role)));
           url = ttsCache[k];
         } catch (e) { console.warn('vpr tts', e); }
         if (!alive()) break;

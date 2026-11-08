@@ -114,7 +114,7 @@
     // dialogue lines are recorded with the voice of the speaker's role, saved as "[boy] text" etc.
     ((unit.vpr && unit.vpr.tasks) || []).forEach(x => (x.dialog || []).forEach(([who, line]) => {
       const r = MQ.roleOf(who);
-      if (r === 'woman') t.add(line); else if (MQ.ai.roleVoice(r)) t.add(`[${r}] ${line}`);
+      if (r === 'woman') t.add(line); else t.add(`[${r}] ${line}`); // every role gets a Mistral voice (fallback in voiceFor)
     }));
     (unit.grammar || []).forEach(g => g.items.forEach(it => { if (it.q.includes(' ')) t.add(it.q.replace('___', it.a)); }));
     (unit.verbs || []).forEach(v => { t.add(MQ.verbSay(v)); t.add(v.base); t.add(MQ.formSay(v, 'v2')); t.add(MQ.formSay(v, 'v3')); });
@@ -127,7 +127,7 @@
     for (const text of texts) {
       statusEl.textContent = `🔊 Озвучиваю ${done + 1} / ${texts.length}: «${text}»`;
       const m = text.match(/^\[(man|girl|boy)\] ([\s\S]*)$/);
-      try { await store.saveAudio(text, await MQ.ai.tts(m ? m[2] : text, m ? MQ.ai.roleVoice(m[1]) : undefined)); }
+      try { await store.saveAudio(text, await MQ.ai.tts(m ? m[2] : text, m ? MQ.ai.voiceFor(m[1]) : undefined)); }
       catch (e) { failed++; lastErr = e.message; if (failed >= 3 && done === 0) break; }
       done++;
     }
@@ -251,6 +251,7 @@
         h('label', { class: 'lbl' }, '📍 Сейчас проходим — можно отметить несколько (сюда прикрепляются новые карточки ученицы)'), nowUnit,
         h('p', { class: 'hint' }, `Чтобы войти, ${s.name} вводит только свой код ${s.pin || ''} — имён на сайте не видно. Или отправьте ей личную ссылку — она откроет сайт сразу под её именем.`),
         h('div', { class: 'row' }, linkBtn)),
+      emergentPanel(s, sets),
       h('div', { class: 'panel' },
         h('h2', {}, '🗂 Назначенные наборы'),
         sets.length ? sets.map(set => {
@@ -290,6 +291,45 @@
           return h('details', { open: true }, h('summary', {}, `${set ? set.title : 'удалённый урок'} · ${fmtDate(p.updated_at)}`), MQ.lessons.answersView(p, set));
         })) : null,
     );
+  }
+
+  // 🌱 emergent vocab: new words from each lesson for one student
+  function emergentPanel(st, sets) {
+    const set = sets.find(x => x.unit_key === 'emergent' && x.student_id === st.id);
+    const items = set ? set.items : [];
+    const save = (list) => store.saveSet({ id: set && set.id, title: '🌱 Words from our lessons', kind: 'words', items: list, unit_key: 'emergent', student_id: st.id });
+    const ta = h('textarea', { class: 'field', rows: 4, placeholder: 'Новые слова с урока — по одному в строке:\nsuddenly = вдруг\nhomework – домашнее задание\nbrave' });
+    const msg = h('div', { class: 'hint' });
+    const add = h('button', { class: 'primary', onclick: async () => {
+      const parsed = MQ.sets.parse('words', ta.value).items;
+      if (!parsed.length) { msg.textContent = 'Напишите хотя бы одно слово.'; return; }
+      add.disabled = true;
+      try {
+        const missing = parsed.filter(w => !w.ru);
+        if (missing.length && MQ.ai.canMakeCards()) {
+          msg.textContent = '✨ ИИ добавляет перевод и картинку…';
+          const r = await MQ.ai.recognize({ text: missing.map(w => w.en).join('\n') });
+          missing.forEach(w => { const f = (r.items || []).find(x => x.en && x.en.toLowerCase() === w.en.toLowerCase()); if (f) { w.ru = f.ru; w.pic = w.pic || f.pic; } });
+        }
+        const date = new Date().toISOString().slice(0, 10);
+        const have = new Set(items.map(w => w.en.toLowerCase()));
+        const fresh = parsed.filter(w => !have.has(w.en.toLowerCase())).map(w => ({ en: w.en, ru: w.ru || '', pic: w.pic || '', added: date }));
+        await save([...items, ...fresh]);
+        toast(`Добавлено слов: ${fresh.length}`); MQ.route();
+      } catch (e) { msg.textContent = '⚠️ ' + e.message; }
+      add.disabled = false;
+    } }, '＋ Добавить слова');
+    const byDate = {};
+    items.forEach((w, i) => { (byDate[w.added || ''] = byDate[w.added || ''] || []).push([w, i]); });
+    return h('div', { class: 'panel left' },
+      h('h2', {}, '🌱 Emergent vocab — новые слова с уроков'),
+      h('p', { class: 'hint' }, `Последние 20 слов сами попадают в словарные игры текущего юнита у ${st.name}, а все слова — в набор «🌱 Words from our lessons» у неё на главной. Перевод можно не писать: его допишет ИИ.`),
+      ta, h('div', { class: 'row', style: 'justify-content:flex-start' }, add), msg,
+      Object.keys(byDate).sort().reverse().map(d => h('div', { class: 'em-day' },
+        h('div', { class: 'muted' }, d ? new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : 'Без даты'),
+        h('div', { class: 'row', style: 'justify-content:flex-start' }, byDate[d].map(([w, i]) => h('span', { class: 'em-word' },
+          `${w.pic ? w.pic + ' ' : ''}${w.en}${w.ru ? ' — ' + w.ru : ''}`,
+          h('button', { class: 'chip', title: 'Удалить слово', onclick: async () => { await save(items.filter((_, k) => k !== i)); MQ.route(); } }, '✕')))))));
   }
 
   async function setsScreen(app) {

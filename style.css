@@ -1170,3 +1170,8 @@ body.theme-woods .sm-star .name { background: rgba(6, 20, 26, .85); }
   .sm-star.next .name { margin-top: 18px; }
   .starmap { height: 320px; }
 }
+.game-sections { max-width: 1160px; margin: 8px auto 0; }
+.game-group h2 { text-align: left; margin: 18px 0 10px; }
+.em-day { margin-top: 12px; }
+.em-word { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 12px; border-radius: 999px; background: var(--sg-btn); font-size: .8em; }
+.em-word .chip { padding: .1em .5em; font-size: .8em; }

@@ -289,6 +289,12 @@ Distribute the right answers (1/2/3) evenly. Return ONLY JSON:
     return role === 'woman' ? DEFAULT_VOICE : null;
   }
 
+  // The voice for a dialogue role, with a fallback, so a role without its own voice is never the robotic browser voice:
+  // girl → woman, boy → man → woman.
+  function voiceFor(role) {
+    return roleVoice(role) || (role === 'boy' ? roleVoice('man') : null) || roleVoice('woman');
+  }
+
   // List of voices (preset + saved in the workspace)
   async function voices() {
     const res = await call('/audio/voices?limit=100');
@@ -300,5 +306,5 @@ Distribute the right answers (1/2/3) evenly. Return ONLY JSON:
   // Voice sample file -> base64 (without the data: prefix)
   async function fileToBase64(file) { return (await fileToDataUrl(file)).replace(/^data:[^,]+,/, ''); }
 
-  MQ.ai = { askJson, unitMaterial, roleVoice, ROLE_FIELDS, generateVpr, generateJeopardy, settings, saveSettings, hasKey: () => !!settings.key, recognizerReady, canMakeCards: () => recognizerReady() || MQ.store.mode === 'cloud', PROVIDER_NAMES, recognize, drawPicture, tts, voices, fileToBase64, DEFAULT_VOICE };
+  MQ.ai = { askJson, unitMaterial, roleVoice, voiceFor, ROLE_FIELDS, generateVpr, generateJeopardy, settings, saveSettings, hasKey: () => !!settings.key, recognizerReady, canMakeCards: () => recognizerReady() || MQ.store.mode === 'cloud', PROVIDER_NAMES, recognize, drawPicture, tts, voices, fileToBase64, DEFAULT_VOICE };
 })();
