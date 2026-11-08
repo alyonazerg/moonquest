@@ -74,6 +74,7 @@
       const toNext = done(steps[i - 1]) && steps[i] === next;
       l.setAttribute('stroke', both || toNext ? 'var(--star)' : '#4a4290');
       l.setAttribute('stroke-width', both ? '2.5' : '1.5');
+      l.setAttribute('class', both ? 'done' : toNext ? 'next' : 'todo');
       if (!both) l.setAttribute('stroke-dasharray', '5 6');
       svg.appendChild(l);
     }
@@ -562,6 +563,9 @@
     if (a && a.getAttribute('href') === (location.hash || '#/')) { e.preventDefault(); route(); }
   });
   window.addEventListener('hashchange', route);
+  // the settings menu closes on a click outside it or with Esc
+  document.addEventListener('click', (e) => { const d = document.querySelector('details.settings[open]'); if (d && !d.contains(e.target)) d.open = false; });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { const d = document.querySelector('details.settings[open]'); if (d) d.open = false; } });
 
   (async () => {
     try { await store.init(); } catch (e) { console.error(e); MQ.toast('⚠️ ' + e.message); }
