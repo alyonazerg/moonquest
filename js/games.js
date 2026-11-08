@@ -359,7 +359,7 @@
     },
   };
 
-  MQ.grammarItems = (u, k) => (k == null ? u.grammar : [u.grammar[k]]).flatMap(g => g.items.map(it => Object.assign({ rule: g.rule, topic: g.title, en: it.q }, it)));
+  MQ.grammarItems = (u, k) => ((k == null ? (u && u.grammar) : [u && u.grammar && u.grammar[k]]) || []).filter(Boolean).flatMap(g => (g.items || []).map(it => Object.assign({ rule: g.rule, topic: g.title, en: it.q }, it)));
   MQ.games = games;
   MQ.gameKit = { runRounds, optionButtons, sayBtn, bar, praise, onKeys };
 })();
