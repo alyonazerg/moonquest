@@ -351,7 +351,7 @@ textarea.field, input[type=file].field { width: 100%; }
 .cw-box { position: relative; width: var(--cw); height: var(--cw); border-radius: 8px; background: rgba(255, 255, 255, .92); box-shadow: 0 3px 8px rgba(0, 0, 20, .35), inset 0 -2px 0 rgba(0, 0, 0, .12); }
 .cw-box.hl { background: #fff3b0; box-shadow: 0 0 0 2px var(--accent), 0 0 14px rgba(255, 211, 77, .6); }
 .cw-num { position: absolute; top: 1px; left: 3px; font-size: calc(var(--cw) * .28); color: #3a2a9a; font-weight: 900; line-height: 1; pointer-events: none; }
-.cw-cell { width: 100%; height: 100%; border: 0; background: transparent; text-align: center; font: 900 calc(var(--cw) * .55) Nunito, system-ui, sans-serif; color: #1b1b3a; text-transform: uppercase; padding: 0; outline: none; caret-color: transparent; }
+.cw-cell { width: 100%; height: 100%; border: 0; background: transparent; text-align: center; font: 700 calc(var(--cw) * .55) Lexend, system-ui, sans-serif; color: #1b1b3a; text-transform: uppercase; padding: 0; outline: none; caret-color: transparent; }
 .cw-cell.ok { color: #128a52; }
 .cw-cell.bad { color: #e3405b; }
 .cw-cell.shown { color: #7b5cff; }
@@ -926,3 +926,101 @@ main:has(.ls-wrap) { max-width: 1200px; }
 .ls-ans { display: flex; flex-direction: column; gap: 4px; font-size: .85em; }
 @media (max-width: 700px) { .ls-nav { position: static; max-width: none; } }
 .ls-card button, .ls-card .btn { font-size: .85em; }
+
+/* =====================================================================
+   Design v3: one font (Lexend), no outlines, "sea glass" surfaces:
+   frosted, soft rounded edges, glow inside, a little grain.
+   ===================================================================== */
+:root {
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .07 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  --sg-tint: rgba(175, 165, 255, .11);
+  --sg-hi: rgba(255, 255, 255, .16);
+  --sg-depth: rgba(8, 4, 35, .32);
+  --sg-drop: rgba(5, 2, 25, .40);
+  --sg-btn: rgba(190, 180, 255, .14);
+}
+body.theme-magic { --sg-tint: rgba(255, 205, 150, .09); --sg-btn: rgba(255, 215, 170, .13); --sg-depth: rgba(25, 5, 20, .35); }
+body.theme-woods { --sg-tint: rgba(150, 235, 200, .09); --sg-btn: rgba(170, 240, 210, .13); --sg-depth: rgba(0, 20, 18, .35); }
+body.light { --sg-tint: rgba(255, 255, 255, .66); --sg-hi: rgba(255, 255, 255, .9); --sg-depth: rgba(91, 63, 224, .10); --sg-drop: rgba(60, 40, 160, .14); --sg-btn: rgba(255, 255, 255, .72); }
+
+/* one font everywhere */
+body, h1, h2, h3, .logo, .big-title, .ls-navtitle, .settings-pop h3,
+body.theme-magic h1, body.theme-magic h2, body.theme-magic .logo, body.theme-magic .tile .title,
+body.theme-woods h1, body.theme-woods h2, body.theme-woods .logo, body.theme-woods .tile .title {
+  font-family: "Lexend", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+h1 { font-weight: 800; letter-spacing: -.01em; }
+h2, .logo, .big-title, .ls-navtitle { font-weight: 700; letter-spacing: -.005em; }
+
+/* sea glass surfaces: no outline, light from the top, depth inside, soft shadow under */
+.glass, .panel, .tile, .flash, .toast, .settings-pop, .starmap-card {
+  border: 0 !important;
+  background-color: transparent;
+  background-image: radial-gradient(130% 90% at 25% -10%, var(--sg-hi), transparent 55%), linear-gradient(var(--sg-tint), var(--sg-tint)), var(--grain);
+  -webkit-backdrop-filter: blur(16px) saturate(140%); backdrop-filter: blur(16px) saturate(140%);
+  box-shadow:
+    inset 0 1.5px 1px rgba(255, 255, 255, .30),
+    inset 0 18px 30px -18px rgba(255, 255, 255, .22),
+    inset 0 -16px 28px -10px var(--sg-depth),
+    0 18px 40px -8px var(--sg-drop), 0 3px 8px var(--sg-drop);
+}
+.panel, .tile, .starmap-card { border-radius: 28px; }
+.tile:hover { transform: translateY(-4px); box-shadow: inset 0 1.5px 1px rgba(255, 255, 255, .34), inset 0 18px 30px -18px rgba(255, 255, 255, .28), inset 0 -16px 28px -10px var(--sg-depth), 0 26px 50px -10px var(--sg-drop), 0 4px 10px var(--sg-drop); }
+.tile.folder, .tile.folder:hover { box-shadow: inset 0 1.5px 1px rgba(255, 255, 255, .30), inset 0 -16px 28px -10px var(--sg-depth), 7px 7px 0 -2px var(--sg-tint), 0 18px 40px -8px var(--sg-drop); }
+/* the star map stays a night sky, but in the same glass */
+.starmap-card { --sg-tint: rgba(10, 6, 40, .72); --sg-hi: rgba(160, 140, 255, .14); }
+body.theme-magic .starmap-card { --sg-tint: rgba(18, 6, 22, .74); }
+body.theme-woods .starmap-card { --sg-tint: rgba(4, 18, 24, .74); }
+body.light .starmap-card { --sg-tint: rgba(26, 20, 70, .92); --sg-hi: rgba(180, 160, 255, .22); }
+body.light .glass, body.light .panel, body.light .tile, body.light .flash, body.light .toast, body.light .settings-pop {
+  box-shadow: inset 0 1.5px 1px #fff, inset 0 18px 30px -18px rgba(255, 255, 255, .9), inset 0 -16px 28px -12px var(--sg-depth), 0 16px 36px -10px var(--sg-drop), 0 2px 6px rgba(60, 40, 160, .08);
+}
+
+/* buttons: small pebbles of glass */
+button, .btn {
+  border: 1px solid transparent;
+  background-color: transparent;
+  background-image: radial-gradient(120% 100% at 30% 0%, rgba(255, 255, 255, .22), transparent 60%), linear-gradient(var(--sg-btn), var(--sg-btn));
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .30), inset 0 -6px 12px -4px var(--sg-depth), 0 6px 14px -4px var(--sg-drop);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  transition: transform .15s, box-shadow .2s, filter .2s;
+}
+button:hover, .btn:hover { background-color: transparent; filter: brightness(1.12); box-shadow: inset 0 1px 1px rgba(255, 255, 255, .36), inset 0 -6px 12px -4px var(--sg-depth), 0 10px 20px -6px var(--sg-drop); }
+button:active, .btn:active { transform: translateY(1px) scale(.98); box-shadow: inset 0 2px 6px var(--sg-depth); }
+.primary, .btn.primary, .chip.on {
+  background-image: radial-gradient(120% 100% at 30% 0%, rgba(255, 255, 255, .55), transparent 60%), linear-gradient(var(--accent), var(--accent));
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .6), inset 0 -8px 14px -6px rgba(120, 60, 0, .35), 0 10px 24px -6px rgba(255, 190, 50, .45);
+  color: var(--on-accent);
+}
+body.light .primary, body.light .btn.primary, body.light .chip.on {
+  background-image: radial-gradient(120% 100% at 30% 0%, rgba(255, 255, 255, .35), transparent 60%), linear-gradient(var(--accent), var(--accent));
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .45), inset 0 -8px 14px -6px rgba(30, 10, 120, .35), 0 10px 24px -6px rgba(91, 63, 224, .45);
+}
+.ls-recbtn { background-image: radial-gradient(120% 100% at 30% 0%, rgba(255, 255, 255, .35), transparent 60%), linear-gradient(#C2346A, #C2346A); color: #fff; }
+
+/* fields and drop zones: pressed into the glass instead of outlined */
+.field, .cell, .slots, .ls-build, .ls-text {
+  border: 1px solid transparent; border-style: solid;
+  background: rgba(5, 2, 30, .28);
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, .35), inset 0 -1px 0 rgba(255, 255, 255, .08);
+}
+body.light .field, body.light .cell, body.light .slots, body.light .ls-build, body.light .ls-text { background: rgba(91, 63, 224, .06); box-shadow: inset 0 2px 6px rgba(60, 40, 160, .14), inset 0 -1px 0 #fff; }
+.field:focus { box-shadow: inset 0 2px 8px rgba(0, 0, 0, .35), 0 0 0 3px rgba(98, 182, 255, .35); }
+.ls-bank .chip-static { border: 0; background: var(--sg-btn); box-shadow: inset 0 1px 1px rgba(255, 255, 255, .25); }
+.progress { box-shadow: inset 0 2px 5px rgba(0, 0, 0, .35); }
+.progress > div { box-shadow: inset 0 1px 1px rgba(255, 255, 255, .45); }
+.topbar { border-bottom: 0; background: transparent; -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%); box-shadow: 0 8px 24px -12px var(--sg-drop); }
+table, th, td { border-color: transparent !important; }
+.table tr:nth-child(even) td { background: rgba(255, 255, 255, .04); }
+body.light .table tr:nth-child(even) td { background: rgba(91, 63, 224, .04); }
+.now-row, .topic { border-top: 0; }
+
+/* ---------- star launch: the star flashes, a ring flies out, the map zooms into it ---------- */
+.starmap-card.warp { animation: sm-warp .75s cubic-bezier(.55, 0, .75, .2) forwards; pointer-events: none; }
+@keyframes sm-warp { 0% { transform: scale(1); filter: none; opacity: 1; } 35% { transform: scale(1.04); } 100% { transform: scale(2.8); filter: blur(5px) brightness(1.6); opacity: 0; } }
+.sm-star.launch { z-index: 3; }
+.sm-star.launch .ico, .sm-star.launch .core, .sm-star.launch .dot { animation: sm-flash .75s ease-out forwards; }
+@keyframes sm-flash { 0% { transform: scale(1); } 40% { transform: scale(1.7); filter: drop-shadow(0 0 22px #fff) brightness(1.6); } 100% { transform: scale(2.4); filter: drop-shadow(0 0 40px #fff) brightness(2); } }
+.sm-burst { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; pointer-events: none; z-index: 2;
+  box-shadow: 0 0 0 3px var(--star), 0 0 30px 6px rgba(255, 220, 120, .7); animation: sm-burst .75s ease-out forwards; }
+@keyframes sm-burst { from { transform: scale(.4); opacity: 1; } to { transform: scale(9); opacity: 0; } }

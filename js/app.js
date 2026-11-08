@@ -80,7 +80,7 @@
     const stars = steps.map((id, i) => {
       const t = stepInfo(id), st = store.getStars(c.key(u, id));
       const cls = done(id) ? 'done' : id === next ? 'next' : 'locked';
-      const a = h('a', { class: 'sm-star ' + cls, href: `${c.href}/${u.id}/${id}`, style: `left:${pos[i][0]}%;top:${pos[i][1]}%`, title: t.title });
+      const a = h('a', { class: 'sm-star ' + cls, href: `${c.href}/${u.id}/${id}`, style: `left:${pos[i][0]}%;top:${pos[i][1]}%`, title: t.title, onclick: (e) => launch(e, a) });
       if (cls === 'done') { a.insertAdjacentHTML('beforeend', STAR_SVG); a.append(h('span', { class: 'name' }, t.title), h('span', { class: 'st' }, starStr(st))); }
       else if (cls === 'next') a.append(h('span', { class: 'ring' }, h('span', { class: 'core' }, t.icon)), h('span', { class: 'name' }, t.title));
       else a.append(h('span', { class: 'dot' }), h('span', { class: 'name' }, t.title));
@@ -92,6 +92,22 @@
         h('span', { class: 'lit' }, `★ ${lit} of ${steps.length} stars lit`)),
       h('div', { class: 'starmap' }, svg, stars),
       h('p', { class: 'note' }, next ? `Light all ${steps.length} stars and the constellation of this unit appears on your sky. A star lights up with ★★.` : '🎉 The constellation is complete! Play any game to get more stars.'));
+  }
+
+  // a click on a star: it flashes, a ring flies out and the map zooms into it, then the game opens
+  function launch(e, star) {
+    if (!MQ.animOn() || e.metaKey || e.ctrlKey) return; // no animation: open at once
+    e.preventDefault();
+    const card = star.closest('.starmap-card');
+    if (!card || card.classList.contains('warp')) return;
+    const cr = card.getBoundingClientRect(), sr = star.getBoundingClientRect();
+    const map = star.parentElement, mr = map.getBoundingClientRect();
+    const sx = sr.left + sr.width / 2, sy = sr.top + Math.min(sr.height / 2, 40);
+    card.style.transformOrigin = `${sx - cr.left}px ${sy - cr.top}px`;
+    map.append(h('span', { class: 'sm-burst', style: `left:${sx - mr.left}px;top:${sy - mr.top}px` }));
+    star.classList.add('launch');
+    card.classList.add('warp');
+    setTimeout(() => { location.hash = star.getAttribute('href'); }, 720);
   }
 
   // 🌕 moon week: every day with a game this week is a full moon

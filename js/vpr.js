@@ -44,6 +44,7 @@
   const FEMALE_BEST = ['Serena', 'Kate', 'Martha', 'Stephanie', 'Libby', 'Sonia', 'Google UK English Female', 'Microsoft Hazel', 'Microsoft Libby', 'Samantha', 'Karen', 'Moira', 'Tessa', 'Fiona', 'Allison', 'Ava', 'Susan', 'Microsoft Zira', 'Google US English'];
   const MALE_BEST = ['Daniel', 'Arthur', 'Google UK English Male', 'Microsoft Ryan', 'Microsoft George', 'Oliver', 'Thomas', 'Tom', 'Alex', 'Aaron', 'Rishi', 'Microsoft David', 'Microsoft Mark', 'Microsoft Guy'];
   const NOVELTY = /fred|albert|bruce|ralph|junior|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|organ|trinoids|whisper|zarvox|jester|superstar|wobble|rocko|grandpa|grandma|eddy|reed|sandy|shelley|flo\b|kathy|princess|vicki|victoria|agnes/i;
+  const ttsCache = {}; // Mistral audio made on this device during the session
   const player = { playing: false, paused: false, stop: false, audio: null, onchange: null, session: 0 };
   const changed = () => player.onchange && player.onchange();
   function voicesFor(people) {
@@ -76,22 +77,52 @@
       if (!alive()) break;
       const sp = MQ.speaker(who);
       const role = MQ.roleOf(who);
-      const url = MQ.store && (MQ.store.audioUrl(`[${role}] ${text}`) || (role === 'woman' ? MQ.store.audioUrl(text) : null));
-      // any problem with one line must not stop the player (or leave it "playing" for ever)
-      await new Promise((ok) => {
+      let url = MQ.store && (MQ.store.audioUrl(`[${role}] ${text}`) || (role === 'woman' ? MQ.store.audioUrl(text) : null));
+      // not recorded yet, but this device has the Mistral key: make the line with the role's Mistral voice now
+      // (the browser's own male voices sound robotic)
+      if (!url && MQ.ai && MQ.ai.hasKey() && MQ.ai.roleVoice(role)) {
+        const k = `[${role}] ${text}`;
         try {
-          if (url) { const a = new Audio(url); player.audio = a; a.onended = ok; a.onerror = ok; a.play().catch(ok); return; }
-          if (!('speechSynthesis' in window)) return ok();
-          const u = new SpeechSynthesisUtterance(text);
-          u.lang = 'en-GB'; u.rate = 0.85;
-          try { if (voices[who]) u.voice = voices[who]; } catch (e) { /* default voice */ }
-          // natural pitch (a lowered pitch sounds hoarse); children only a little higher
-          u.pitch = sp.adult ? 1 : 1.12;
-          u.onend = ok; u.onerror = ok;
-          speechSynthesis.speak(u);
-          setTimeout(ok, 1500 + text.length * 160); // safety net if the browser never says "end"
-        } catch (e) { ok(); }
-      });
+          if (!ttsCache[k]) ttsCache[k] = URL.createObjectURL(await MQ.ai.tts(text, role === 'woman' ? undefined : MQ.ai.roleVoice(role)));
+          url = ttsCache[k];
+        } catch (e) { console.warn('vpr tts', e); }
+        if (!alive()) break;
+      }
+      // any problem with one line must not stop the player (or leave it "playing" for ever).
+      // A pause stops the line; "continue" says the same line again from the start (no double sound).
+      let finished = false;
+      while (!finished && alive()) {
+        if (player.paused) await waitIfPaused();
+        if (!alive()) break;
+        finished = await new Promise((done) => {
+          let settled = false;
+          const end = (v) => { if (!settled) { settled = true; player.cancelLine = null; done(v); } };
+          try {
+            if (url) {
+              const a = new Audio(url); player.audio = a;
+              a.onended = () => end(true); a.onerror = () => end(true);
+              a.play().catch(() => end(true));
+              return;
+            }
+            if (!('speechSynthesis' in window)) return end(true);
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = 'en-GB'; u.rate = 0.85;
+            try { if (voices[who]) u.voice = voices[who]; } catch (e) { /* default voice */ }
+            // natural pitch (a lowered pitch sounds hoarse); children only a little higher
+            u.pitch = sp.adult ? 1 : 1.12;
+            u.onend = () => end(!player.paused); u.onerror = () => end(!player.paused);
+            player.cancelLine = () => { speechSynthesis.cancel(); end(false); };
+            speechSynthesis.speak(u);
+            // safety net if the browser never says "end" (it does not fire while paused)
+            const limit = 1500 + text.length * 160;
+            const t0 = Date.now();
+            const tick = setInterval(() => {
+              if (settled) return clearInterval(tick);
+              if (!player.paused && Date.now() - t0 > limit) { clearInterval(tick); end(true); }
+            }, 300);
+          } catch (e) { end(true); }
+        });
+      }
       player.audio = null;
       await new Promise(r => setTimeout(r, 350));
     }
@@ -100,11 +131,12 @@
   function pauseDialog() {
     if (!player.playing) return;
     player.paused = !player.paused;
-    if (player.audio) player.paused ? player.audio.pause() : player.audio.play();
-    else if ('speechSynthesis' in window) player.paused ? speechSynthesis.pause() : speechSynthesis.resume();
+    if (player.audio) player.paused ? player.audio.pause() : player.audio.play().catch(() => {});
+    else if (player.paused && player.cancelLine) player.cancelLine(); // the line is said again after "continue"
     changed();
   }
   function stopDialog() {
+    if (player.cancelLine) player.cancelLine();
     player.session++; player.stop = true; player.paused = false;
     if (player.audio) player.audio.pause();
     if ('speechSynthesis' in window) { speechSynthesis.resume(); speechSynthesis.cancel(); }
